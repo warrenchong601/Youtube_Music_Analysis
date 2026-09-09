@@ -1,0 +1,7 @@
+Requirements to run this project:
+pandas
+matplotlib
+seaborn
+jupyter
+beautifulsoup4
+lxml
