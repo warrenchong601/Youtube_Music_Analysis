@@ -13,3 +13,6 @@ venv/
 # Private/raw data
 data/raw/
 *.zip
+
+#Youtube API Key
+.env
