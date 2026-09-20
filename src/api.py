@@ -5,6 +5,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 from src import analysis, analysis_pipeline
 from src.imports import dataset_path, router as imports_router
@@ -36,9 +37,7 @@ MUSIC_HISTORY_PATH = (
 
 @app.get("/")
 def root():
-    return {
-        "message": "YouTube Music Analysis API"
-    }
+    return RedirectResponse(url="/dashboard/")
 
 # ============================================================
 # Dataset Loading and Response Helpers
