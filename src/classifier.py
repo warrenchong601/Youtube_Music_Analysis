@@ -9,14 +9,13 @@ STRONG_MUSIC_KEYWORDS = [
     "music video",
     "lyric video",
     "lyrics",
-    "cover",
     "remix",
     "instrumental",
     "full song",
     "歌ってみた",
 ]
 
-STRONG_MUSIC_TOKENS = [ "mv" ]
+STRONG_MUSIC_TOKENS = ["mv", "cover", "remix", "instrumental", "lyrics"]
 
 WEAK_MUSIC_TOKENS = [ "song", "ost", "extended", "soundtrack"]
 
@@ -92,9 +91,9 @@ def remove_shorts_video_candidates(
             f"Checking Short {index + 1}/{len(music_candidates)}"
         )
 
-        if not is_short_function(
+        if is_short_function(
             music_candidate.get("video_ID")
-        ):
+        ) is False:
             true_music_candidates.append(music_candidate)
 
     return true_music_candidates

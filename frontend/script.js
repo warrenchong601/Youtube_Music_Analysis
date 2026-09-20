@@ -187,8 +187,11 @@ function formatDuration(seconds) {
 function formatWeekRange(week) {
     return String(week).split("/").map(formatDateLabel).join(" – ");
 }
+const API_BASE = (location.pathname.startsWith("/dashboard") || location.port === "8000") ? location.origin : "http://127.0.0.1:8000";
+const activeDataset = sessionStorage.getItem("musicDataset");
 async function fetchData(url) {
-    const response = await fetch(url);
+    url = url.replace("http://127.0.0.1:8000", API_BASE);
+    const response = await fetch(url, {headers: activeDataset ? {"X-Dataset-Token": activeDataset} : {}});
     if (!response.ok) throw new Error("Request failed: " + response.status);
     return response;
 }
@@ -325,6 +328,15 @@ async function loadSessionHighlights() {
         const leaders = favourites.filter(([, plays]) => plays === max).map(([title]) => title);
         document.getElementById(key + "_favourite").textContent = max > 1
             ? "On repeat: " + leaders.join(" / ") + " · " + max + " plays each" : "A session of variety — no song played twice.";
+    }
+    if (!data.largest_session || !data.longest_session) {
+        for (const key of ["largest_session", "longest_session"]) {
+            document.getElementById(key + "_events").textContent = "0";
+            document.getElementById(key + "_date").textContent = "—";
+            document.getElementById(key + "_duration").textContent = "0h 0m";
+            document.getElementById(key + "_favourite").textContent = "No listening sessions";
+        }
+        return;
     }
     const largest = data.largest_session;
     const longest = data.longest_session;
@@ -996,3 +1008,95 @@ Promise.allSettled(loaders.map(load => load())).then(results => {
         failed.forEach(result => console.error(result.reason));
     }
 });
+
+
+// Reload on dataset changes so in-flight requests cannot mix reports.
+document.getElementById("export_timezone").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+const importStatus = document.getElementById("import_status");
+const importButton = document.getElementById("import_button");
+const originalButton = document.getElementById("original_report");
+const deleteButton = document.getElementById("delete_import");
+let savedImport = sessionStorage.getItem("lastMusicImport");
+originalButton.hidden = !activeDataset;
+deleteButton.hidden = !savedImport;
+document.getElementById("dataset_label").textContent = activeDataset ? "Showing your imported report (UTC)" : "Showing the original report";
+importStatus.textContent = sessionStorage.getItem("musicImportSummary") || "";
+
+async function importRequest(path, options = {}) {
+    const response = await fetch(API_BASE + path, options);
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.detail || "Request failed (" + response.status + ")");
+    return body;
+}
+
+async function monitorImport(token) {
+    importButton.disabled = true;
+    deleteButton.disabled = true;
+    try {
+        while (true) {
+            const job = await importRequest("/api/imports/current", {headers: {"X-Dataset-Token": token}});
+            importStatus.textContent = job.message;
+            if (job.status === "failed") {
+                sessionStorage.removeItem("pendingMusicImport");
+                throw new Error(job.message);
+            }
+            if (job.status === "complete") {
+                const summary = job.summary;
+                sessionStorage.setItem("musicImportSummary", summary.music_plays + " music plays from " + summary.watch_events + " usable watch events. " + summary.excluded_shorts + " Shorts excluded; " + summary.unverified_videos + " videos left out because their format could not be verified. " + summary.skipped_records + " records skipped because of invalid dates or URLs.");
+                sessionStorage.setItem("musicDataset", token);
+                sessionStorage.removeItem("pendingMusicImport");
+                location.reload();
+                return;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+    } catch (error) {
+        importStatus.textContent = error.message + " Refresh to reconnect, or try another import.";
+    } finally {
+        importButton.disabled = false;
+        deleteButton.disabled = false;
+    }
+}
+
+document.getElementById("import_form").addEventListener("submit", async event => {
+    event.preventDefault();
+    const file = document.getElementById("history_file").files[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+        importStatus.textContent = "Choose a history file smaller than 25 MB.";
+        return;
+    }
+    if (savedImport) {
+        importStatus.textContent = "Delete your previous import before importing another file.";
+        return;
+    }
+    importButton.disabled = true;
+    importStatus.textContent = "Uploading history…";
+    try {
+        const created = await importRequest("/api/imports?filename=" + encodeURIComponent(file.name) + "&timezone=" + encodeURIComponent(document.getElementById("export_timezone").value), {method: "POST", body: file, headers: {"Content-Type": "application/octet-stream"}});
+        savedImport = created.dataset_token;
+        sessionStorage.setItem("lastMusicImport", savedImport);
+        sessionStorage.setItem("pendingMusicImport", savedImport);
+        deleteButton.hidden = false;
+        await monitorImport(savedImport);
+    } catch (error) {
+        importStatus.textContent = error.message;
+    } finally {
+        importButton.disabled = false;
+    }
+});
+originalButton.addEventListener("click", () => {
+    sessionStorage.removeItem("musicDataset");
+    location.reload();
+});
+deleteButton.addEventListener("click", async () => {
+    try {
+        await importRequest("/api/imports/current", {method: "DELETE", headers: {"X-Dataset-Token": savedImport}});
+        for (const key of ["musicDataset", "lastMusicImport", "pendingMusicImport", "musicImportSummary"]) sessionStorage.removeItem(key);
+        location.reload();
+    } catch (error) {
+        importStatus.textContent = error.message;
+    }
+});
+const pendingImport = sessionStorage.getItem("pendingMusicImport");
+if (pendingImport) monitorImport(pendingImport);

@@ -411,3 +411,14 @@ button:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 
 @media (min-width: 1400px) {
     .ranking-card { width: calc(100% + 120px); margin-left: -60px; }
 }
+
+
+.import-card { margin-bottom: 2rem; padding: 1.5rem; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface); }
+.import-card p { color: var(--muted); max-width: 85ch; }
+.import-card a { color: var(--accent-bright); }
+.import-card form { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.import-card input { max-width: 100%; }
+.import-card button { background: var(--accent-soft); color: var(--text); border: 1px solid var(--border-strong); border-radius: 8px; padding: .65rem 1rem; cursor: pointer; }
+.import-card button:disabled { opacity: .5; cursor: wait; }
+.import-card button:focus-visible, .import-card input:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
+[hidden] { display: none !important; }

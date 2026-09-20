@@ -67,7 +67,7 @@ def get_top_song_concentration(music_dataframe, limits= (1,3,5,10,25)):
 
     for limit in limits:
         top_n_plays = title_counts.head(limit).sum()
-        top_n_plays_percentage = top_n_plays / total_plays * 100
+        top_n_plays_percentage = top_n_plays / total_plays * 100 if total_plays else 0.0
 
         concentration_stats[limit] = {
             "plays": top_n_plays,
@@ -111,12 +111,12 @@ def add_duration_seconds(music_dataframe):
 
     return music_dataframe
 
-def add_adjusted_duration(music_dataframe):
+def add_adjusted_duration(music_dataframe, use_personal_overrides=True):
     music_dataframe["adjusted_duration_seconds"] = (
         music_dataframe["duration_seconds"].copy()
     )
 
-    for title, adjusted_duration in DURATION_EXCEPTIONS.items():
+    for title, adjusted_duration in (DURATION_EXCEPTIONS.items() if use_personal_overrides else []):
         music_dataframe.loc[
             music_dataframe["title"] == title,
             "adjusted_duration_seconds"
@@ -170,7 +170,8 @@ def add_session_ids(music_dataframe):
         minutes=SESSION_GAP_MINUTES
     )
 
-    new_session.iloc[0] = True
+    if not new_session.empty:
+        new_session.iloc[0] = True
 
     music_dataframe["session_id"] = new_session.cumsum()
 
@@ -195,6 +196,10 @@ def get_listening_time_per_session(music_dataframe):
     return listening_time_per_session
 
 def get_session_summary(music_dataframe):
+    if music_dataframe.empty:
+        return dict(total_sessions=0, average_events=0, median_events=0,
+                    largest_session_events=0, average_session_seconds=0,
+                    longest_session_seconds=0)
     events_per_session = get_events_per_session(music_dataframe)
     time_per_session = get_listening_time_per_session(music_dataframe)
 
@@ -231,6 +236,8 @@ def get_session_details(music_dataframe, session_id):
     }
 
 def get_largest_session(music_dataframe):
+    if music_dataframe.empty:
+        return None
     events_per_session = get_events_per_session(music_dataframe)
 
     largest_session_id = events_per_session.idxmax()
@@ -241,6 +248,8 @@ def get_largest_session(music_dataframe):
     )
 
 def get_longest_session(music_dataframe):
+    if music_dataframe.empty:
+        return None
     time_per_session = get_listening_time_per_session(music_dataframe)
 
     longest_session_id = time_per_session.idxmax()
@@ -325,7 +334,7 @@ def get_song_loyalty_summary(music_dataframe):
         "repeated_songs": repeated_songs,
         "first_plays": first_plays,
         "repeat_plays": repeat_plays,
-        "repeat_play_percentage": repeat_plays / total_plays * 100,
+        "repeat_play_percentage": repeat_plays / total_plays * 100 if total_plays else 0.0,
     }
 
 def get_song_week_persistence(music_dataframe, limit=10):

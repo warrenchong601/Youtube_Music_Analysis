@@ -24,6 +24,23 @@
         </header>
 
         <main>
+            <section class="import-card" aria-labelledby="import-title">
+                <h2 id="import-title">Your listening history</h2>
+                <p>Export your YouTube history from <a href="https://takeout.google.com/" target="_blank" rel="noopener">Google Takeout</a>, extract the archive, then choose watch-history.json or watch-history.html (up to 25 MB). JSON is recommended. Times are shown in UTC for imported histories.</p>
+                <p>Your history is processed by this server using YouTube video metadata. The extracted upload is not saved; your processed dataset stays on this server until deleted. Keep this tab open while importing.</p>
+                <form id="import_form">
+                    <label for="history_file">Watch history file</label>
+                    <input id="history_file" type="file" accept=".html,.json" required>
+                    <label for="export_timezone">Export timezone (HTML)</label>
+                    <input id="export_timezone" value="Europe/Dublin" required aria-describedby="timezone_help">
+                    <button id="import_button" type="submit">Import my history</button>
+                </form>
+                <p id="timezone_help">For HTML, use the timezone used when exporting (for example Europe/Dublin). JSON timestamps already include their timezone.</p>
+                <p id="dataset_label">Showing the original report</p>
+                <p id="import_status" role="status" aria-live="polite"></p>
+                <button id="original_report" type="button" hidden>Show original report</button>
+                <button id="delete_import" type="button" hidden>Delete my imported data</button>
+            </section>
             <p id="load_status" class="load-status" role="status" hidden></p>
             <section class="dashboard-section" aria-labelledby="overview-title">
                 <div class="section-heading">
