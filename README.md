@@ -1,74 +1,140 @@
 # YouTube Music Analysis
 
-## Run locally
+A Python project for exploring my YouTube listening history. It takes a Google
+Takeout export, identifies which videos are likely to be music, and displays the
+results in a dashboard.
 
-Use Python 3.10 or later. From the project root:
+The project started with exploring the data in Jupyter notebooks. I then moved
+the parsing, classification and analysis into reusable Python files, added a
+FastAPI backend, and built a frontend to display the results.
 
-    python -m pip install -r requirements.txt
-    python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
+## What it shows
 
-Open http://127.0.0.1:8000/dashboard/. Set YOUTUBE_API_KEY in the project's .env
-before importing history. Keep the key on the server.
+The dashboard includes:
 
-## Import your own history
+- Most played songs and channels
+- Estimated listening time
+- Listening activity by date, hour and weekday
+- Listening sessions, including the largest and longest sessions
+- How often I return to the same songs
+- Weekly favourites and changes in song rankings
 
-In Google Takeout, select YouTube and YouTube Music history and request JSON
-(recommended) or HTML. Extract the archive and upload watch-history.json or
-watch-history.html using the dashboard. ZIP archives are not accepted.
+You can view the original report or upload your own watch history to generate
+another report.
 
-For HTML, select the timezone used by the export, such as Europe/Dublin.
-Abbreviations such as IST are ambiguous; ISO timestamps in JSON preserve
-their explicit offsets. Imported reports display UTC. Invalid dates and
-ambiguous daylight-saving timestamps are skipped.
+## How it works
 
-Imports run in the background with progress, up to two at once, with limits of
-25 MB and 100,000 usable-format watch records. Duplicate video metadata requests
-are avoided while repeated watch events remain in the report.
+1. Read the watch history from a Google Takeout HTML or JSON file.
+2. Use the YouTube API to get video and channel metadata.
+3. Filter music candidates using YouTube's music category, check for Shorts,
+   and classify the remaining videos using their titles, descriptions and channels.
+4. Match the accepted videos back to the watch history so repeated listens are
+   still counted.
+5. Calculate the listening statistics and display them in the dashboard.
 
-Each import uses a random capability token kept in this browser tab's session
-storage. The token selects an isolated dataset; an invalid token never falls
-back to the original report. Delete my imported data removes its CSV, decisions
-and status. Raw uploads are held in memory and are not saved to disk.
-Processed data remains in data/imports until deleted. Closing the tab can lose
-the token; the server owner can remove abandoned import directories manually.
+The classification is based on rules, so it will not get every video right.
+YouTube's music category is a starting point rather than proof that a video is a
+song. Videos with an inconclusive Shorts check are left out of the report, but
+are not treated as confirmed non-music. A short duration alone does not exclude
+a song.
 
-Run a single server worker. Completed imports survive server restarts.
-Interrupted imports become failed and can be deleted and retried. This is a
-local-server implementation, not an authenticated multi-user hosting service.
-The original report remains available to visitors of this server.
+Listening time is also an estimate. Takeout records when a video was watched,
+not how much of it was played. My original report includes a few manual duration
+adjustments for long videos; these are not applied to uploaded histories.
 
-## Classification
+## Running the project
 
-Explicit /shorts/ history URLs and titles labelled #short or #shorts are
-excluded. Videos longer than three minutes skip the Shorts request. Remaining candidates
-are checked through the YouTube Shorts URL redirect heuristic, retrying an
-unexpected or consent redirect with the HTTP client's default user agent. HTTP failures, consent redirects and unexpected URLs are
-unknown, excluded from accepted music, and counted in the import summary.
-Unknown does not mean confirmed non-music. The redirect heuristic cannot
-guarantee perfect Shorts detection and depends on YouTube's web behaviour.
+You will need Python 3.10 or later. From the project folder, install the
+dependencies:
 
-Classification decisions are retained in data/imports/<token>/decisions.json.
-A short song is not excluded solely because of its duration.
-The cover keyword now uses word boundaries, so discovered does not match it.
-Uploaded reports do not use the original user's personal duration overrides.
-Listening time remains an estimate from video durations, not actual playback.
+```powershell
+python -m pip install -r requirements.txt
+```
 
-The existing report had two explicitly labelled Shorts removed. Its prior
-version is data/processed/music_history.before-shorts-fix.csv. To reclassify
-the complete original Takeout file with live metadata, run:
+To import or reprocess watch history, create a `.env` file in the project folder
+and add your YouTube Data API key:
 
-    python -m src.main
+```dotenv
+YOUTUBE_API_KEY=your_api_key_here
+```
 
-This uses data/raw/watch-history.html and overwrites the processed report.
-It requires YouTube API access and may take several minutes.
+Keep this key private and do not commit the `.env` file. The existing report can
+be viewed without making new YouTube API requests.
 
-## Tests
+Start the backend:
 
-    python -m unittest discover -s tests -v
+```powershell
+python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
+```
 
-Tests mock YouTube responses, covering classification errors, HTML/JSON parsing,
-timezone handling, repeated listens, upload validation, dataset isolation,
-restart persistence, deletion and all dashboard endpoints with an empty report.
-Regression fixtures also compare every analysis endpoint and classification precedence
-against the pre-refactor results. Additional tests cover duration boundaries, batching,
-malformed metadata, daylight-saving timestamps and storage failures.
+Then open [the dashboard](http://127.0.0.1:8000/dashboard/) in your browser.
+Use a single server worker, as the import queue is managed by that process.
+
+## Using your own history
+
+1. Go to [Google Takeout](https://takeout.google.com/) and export your YouTube
+   and YouTube Music watch history. JSON is recommended, but HTML also works.
+2. Extract the downloaded archive.
+3. Upload `watch-history.json` or `watch-history.html` through the dashboard.
+   Upload the history file itself, not the ZIP archive.
+4. For HTML exports, choose the timezone used by the export, such as
+   `Europe/Dublin`.
+
+The dashboard shows progress while the import runs. It accepts files up to
+25 MB and at most 100,000 recognised watch records, with two imports allowed to
+run at once. Imported reports use UTC. Records with invalid dates or local times
+that cannot be resolved around daylight-saving changes are skipped.
+
+Keep the browser tab open while using your imported report. The tab remembers
+which import belongs to you; closing it can lose that reference. Use **Delete my
+imported data** when you want to remove the saved report.
+
+The raw upload is not saved to disk. The processed CSV, classification decisions
+and import status are saved under `data/imports/` until deleted. Completed imports
+can be reopened after a server restart if the tab still has their reference.
+Interrupted imports need to be deleted and imported again.
+
+This is intended to run locally. It does not have user accounts, and anyone who
+can access the server can view the original report.
+
+## Project structure
+
+- `notebooks/` — the original data exploration and analysis
+- `src/google_takeout.py` — reading and cleaning watch history
+- `src/youtube_api.py` — YouTube metadata requests and Shorts checks
+- `src/classifier.py` — music classification rules
+- `src/music_pipeline.py` and `src/music_export.py` — building the music dataset
+- `src/analysis.py` and `src/analysis_pipeline.py` — listening statistics
+- `src/api.py` and `src/imports.py` — dashboard endpoints and history uploads
+- `src/main.py` — running the original history through the pipeline
+- `frontend/` — the dashboard's HTML, CSS and JavaScript
+- `tests/` — automated tests and reference results
+- `data/` — local history files and generated reports
+
+## Rebuilding the original report
+
+Place the original HTML export at `data/raw/watch-history.html`, then run:
+
+```powershell
+python -m src.main
+```
+
+This fetches fresh YouTube metadata and overwrites
+`data/processed/music_history.csv`. It needs an API key and may take several
+minutes.
+
+## Running the tests
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+The tests cover parsing, classification, imports, analysis responses and error
+handling. They use mocked YouTube responses, so they do not need an API key or
+make live YouTube requests.
+
+`tests/fixtures/analysis_reference.json` contains expected results from a small
+artificial dataset, captured before the refactor. `tests/test_refactor.py`
+compares the current results against it to check that the refactor has preserved
+the calculations and classification behaviour. These files belong together and
+should both be committed.
