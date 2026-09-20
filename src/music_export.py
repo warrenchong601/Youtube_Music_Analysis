@@ -22,7 +22,10 @@ METADATA_COLUMNS = [
 # ============================================================
 
 # Join accepted music metadata back onto every matching watch event.
-def create_music_dataframe(records_dataframe, classified_candidates):
+def create_music_dataframe(
+    records_dataframe: pd.DataFrame,
+    classified_candidates: list[dict],
+) -> pd.DataFrame:
 
     music_candidates = [
         candidate for candidate in classified_candidates
@@ -32,10 +35,16 @@ def create_music_dataframe(records_dataframe, classified_candidates):
     # Remove duplicate video metadata before merging,
     # while preserving repeated watches of the same video in the listening history.
 
-    music_metadata_dataframe = (pd.DataFrame( music_candidates, columns=METADATA_COLUMNS)
-                                .drop_duplicates(subset="video_ID")
-                                .reset_index(drop=True))
+    # Explicit columns keep the merge valid even when no candidates pass
+    # classification, allowing an empty report to retain its normal schema.
+    music_metadata_dataframe = (
+        pd.DataFrame(music_candidates, columns=METADATA_COLUMNS)
+        .drop_duplicates(subset="video_ID")
+        .reset_index(drop=True)
+    )
 
+    # A many-to-one merge prevents duplicate metadata from multiplying
+    # watch events and inflating play counts or listening-time estimates.
     music_dataframe = pd.merge(
         records_dataframe,
         music_metadata_dataframe,
@@ -58,13 +67,20 @@ def create_music_dataframe(records_dataframe, classified_candidates):
 # Music History Export
 # ============================================================
 
-def export_music_history(records_dataframe, classified_candidates, output_path):
+def export_music_history(
+    records_dataframe: pd.DataFrame,
+    classified_candidates: list[dict],
+    output_path: str | Path,
+) -> pd.DataFrame:
     """Save without a pandas index and return the exported DataFrame."""
     music_dataframe = create_music_dataframe(
         records_dataframe, classified_candidates
     )
 
     output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    music_dataframe.to_csv(output_path, index=False)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        music_dataframe.to_csv(output_path, index=False)
+    except OSError as error:
+        raise OSError(f"Could not export music history: {output_path}") from error
     return music_dataframe

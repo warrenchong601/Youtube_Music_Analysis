@@ -1,5 +1,6 @@
-import pandas as pd
 import re
+
+import pandas as pd
 
 # ============================================================
 # Analysis Configuration
@@ -36,30 +37,30 @@ SESSION_GAP_MINUTES = 30
 # ============================================================
 # Basic Listening Statistics
 # ============================================================
-def get_listening_summary(music_dataframe):
+def get_listening_summary(music_dataframe: pd.DataFrame):
     music_plays = len(music_dataframe)
     unique_videos = music_dataframe["video_ids"].nunique()
     unique_channels = music_dataframe["channel_id"].nunique()
 
     listening_summary = {
-        "music_plays" : music_plays,
-        "unique_videos" : unique_videos,
-        "unique_channels" : unique_channels,
+        "music_plays": music_plays,
+        "unique_videos": unique_videos,
+        "unique_channels": unique_channels,
     }
 
     return listening_summary
 
-def get_top_songs(music_dataframe, limit = 10):
+def get_top_songs(music_dataframe: pd.DataFrame, limit: int = 10) -> pd.Series:
     title_counts = music_dataframe["title"].value_counts().head(limit)
 
     return title_counts
 
-def get_top_channels(music_dataframe, limit = 10):
+def get_top_channels(music_dataframe: pd.DataFrame, limit: int = 10) -> pd.Series:
     channel_counts = music_dataframe["channel"].value_counts().head(limit)
 
     return channel_counts
 
-def get_top_song_concentration(music_dataframe, limits= (1,3,5,10,25)):
+def get_top_song_concentration(music_dataframe: pd.DataFrame, limits=(1, 3, 5, 10, 25)):
     title_counts = music_dataframe["title"].value_counts()
     total_plays = title_counts.sum()
 
@@ -79,31 +80,33 @@ def get_top_song_concentration(music_dataframe, limits= (1,3,5,10,25)):
 # ============================================================
 # Listening Duration Analysis
 # ============================================================
-def convert_iso8601_to_seconds(duration):
+def convert_iso8601_to_seconds(duration: str) -> int:
     match = re.match(
         r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?",
         duration
     )
 
+    if match is None:
+        raise ValueError(f"Invalid video duration: {duration!r}")
     duration_parts = match.groups()
 
     seconds = 0
     multipliers = [3600, 60, 1]
 
-    for index in range(3):
-        if duration_parts[index] is not None:
-            seconds += int(duration_parts[index]) * multipliers[index]
+    for duration_part, multiplier in zip(duration_parts, multipliers):
+        if duration_part is not None:
+            seconds += int(duration_part) * multiplier
 
     return seconds
 
-def convert_seconds_to_hms(seconds):
+def convert_seconds_to_hms(seconds: int | float) -> str:
     seconds = int(seconds)
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
 
     return f"{hours:02d}H:{minutes:02d}M:{seconds:02d}S"
 
-def add_duration_seconds(music_dataframe):
+def add_duration_seconds(music_dataframe: pd.DataFrame) -> pd.DataFrame:
     music_dataframe["duration_seconds"] = (
         music_dataframe["video_duration"]
         .apply(convert_iso8601_to_seconds)
@@ -111,12 +114,16 @@ def add_duration_seconds(music_dataframe):
 
     return music_dataframe
 
-def add_adjusted_duration(music_dataframe, use_personal_overrides=True):
+def add_adjusted_duration(
+    music_dataframe: pd.DataFrame,
+    use_personal_overrides: bool = True,
+) -> pd.DataFrame:
     music_dataframe["adjusted_duration_seconds"] = (
         music_dataframe["duration_seconds"].copy()
     )
 
-    for title, adjusted_duration in (DURATION_EXCEPTIONS.items() if use_personal_overrides else []):
+    duration_overrides = DURATION_EXCEPTIONS if use_personal_overrides else {}
+    for title, adjusted_duration in duration_overrides.items():
         music_dataframe.loc[
             music_dataframe["title"] == title,
             "adjusted_duration_seconds"
@@ -124,13 +131,13 @@ def add_adjusted_duration(music_dataframe, use_personal_overrides=True):
 
     return music_dataframe
 
-def get_total_listening_seconds(music_dataframe):
+def get_total_listening_seconds(music_dataframe: pd.DataFrame):
     return music_dataframe["adjusted_duration_seconds"].sum()
 # ============================================================
 # Temporal Analysis
 # ============================================================
 
-def get_listens_by_hour(music_dataframe):
+def get_listens_by_hour(music_dataframe: pd.DataFrame):
     hourly_counts = (
         music_dataframe["watched_at"]
         .dt.hour
@@ -140,7 +147,7 @@ def get_listens_by_hour(music_dataframe):
 
     return hourly_counts
 
-def get_listens_by_weekday(music_dataframe):
+def get_listens_by_weekday(music_dataframe: pd.DataFrame):
     weekday_counts = (
         music_dataframe["watched_at"]
         .dt.day_name()
@@ -149,7 +156,7 @@ def get_listens_by_weekday(music_dataframe):
 
     return weekday_counts.reindex(WEEKDAY_ORDER, fill_value=0)
 
-def get_listens_by_date(music_dataframe):
+def get_listens_by_date(music_dataframe: pd.DataFrame):
     daily_counts = (
         music_dataframe["watched_at"]
         .dt.date
@@ -163,7 +170,9 @@ def get_listens_by_date(music_dataframe):
 # Listening Session Analysis
 # ============================================================
 
-def add_session_ids(music_dataframe):
+def add_session_ids(music_dataframe: pd.DataFrame) -> pd.DataFrame:
+    # Records must already be in chronological order: sessions depend on
+    # gaps between consecutive watch events, not on video durations.
     time_gaps = music_dataframe["watched_at"].diff()
 
     new_session = time_gaps > pd.Timedelta(
@@ -177,7 +186,7 @@ def add_session_ids(music_dataframe):
 
     return music_dataframe
 
-def get_events_per_session(music_dataframe):
+def get_events_per_session(music_dataframe: pd.DataFrame):
     events_per_session = (
         music_dataframe
         .groupby("session_id")
@@ -186,7 +195,7 @@ def get_events_per_session(music_dataframe):
 
     return events_per_session
 
-def get_listening_time_per_session(music_dataframe):
+def get_listening_time_per_session(music_dataframe: pd.DataFrame):
     listening_time_per_session = (
         music_dataframe
         .groupby("session_id")["adjusted_duration_seconds"]
@@ -195,11 +204,16 @@ def get_listening_time_per_session(music_dataframe):
 
     return listening_time_per_session
 
-def get_session_summary(music_dataframe):
+def get_session_summary(music_dataframe: pd.DataFrame):
     if music_dataframe.empty:
-        return dict(total_sessions=0, average_events=0, median_events=0,
-                    largest_session_events=0, average_session_seconds=0,
-                    longest_session_seconds=0)
+        return {
+            "total_sessions": 0,
+            "average_events": 0,
+            "median_events": 0,
+            "largest_session_events": 0,
+            "average_session_seconds": 0,
+            "longest_session_seconds": 0,
+        }
     events_per_session = get_events_per_session(music_dataframe)
     time_per_session = get_listening_time_per_session(music_dataframe)
 
@@ -214,7 +228,7 @@ def get_session_summary(music_dataframe):
 
     return session_summary
 
-def get_session_details(music_dataframe, session_id):
+def get_session_details(music_dataframe: pd.DataFrame, session_id):
     session = music_dataframe[
         music_dataframe["session_id"] == session_id
     ]
@@ -235,7 +249,7 @@ def get_session_details(music_dataframe, session_id):
         "top_songs": top_songs.to_dict(),
     }
 
-def get_largest_session(music_dataframe):
+def get_largest_session(music_dataframe: pd.DataFrame):
     if music_dataframe.empty:
         return None
     events_per_session = get_events_per_session(music_dataframe)
@@ -247,7 +261,7 @@ def get_largest_session(music_dataframe):
         largest_session_id
     )
 
-def get_longest_session(music_dataframe):
+def get_longest_session(music_dataframe: pd.DataFrame):
     if music_dataframe.empty:
         return None
     time_per_session = get_listening_time_per_session(music_dataframe)
@@ -263,7 +277,7 @@ def get_longest_session(music_dataframe):
 # Listening Trend Analysis - Weekly groupings are used to track changes in song popularity over time.
 # ============================================================
 
-def add_week_period(music_dataframe):
+def add_week_period(music_dataframe: pd.DataFrame) -> pd.DataFrame:
     music_dataframe["week"] = (
         music_dataframe["watched_at"]
         .dt.to_period("W")
@@ -271,7 +285,7 @@ def add_week_period(music_dataframe):
 
     return music_dataframe
 
-def get_weekly_song_counts(music_dataframe):
+def get_weekly_song_counts(music_dataframe: pd.DataFrame):
     weekly_song_counts = (
         music_dataframe
         .groupby(["week", "title"])
@@ -280,7 +294,7 @@ def get_weekly_song_counts(music_dataframe):
 
     return weekly_song_counts
 
-def get_top_songs_by_week(music_dataframe, limit=5):
+def get_top_songs_by_week(music_dataframe: pd.DataFrame, limit: int = 5) -> pd.Series:
     weekly_song_counts = get_weekly_song_counts(music_dataframe)
 
     top_weekly_songs = (
@@ -291,11 +305,13 @@ def get_top_songs_by_week(music_dataframe, limit=5):
 
     return top_weekly_songs
 
-def get_song_weekly_trend(music_dataframe, title):
+def get_song_weekly_trend(music_dataframe: pd.DataFrame, title: str):
     weekly_song_counts = get_weekly_song_counts(
         music_dataframe
     )
 
+    # Use the report's observed weeks so a song has zero plays in weeks
+    # where other songs were heard, rather than dropping those points.
     all_weeks = (
         music_dataframe["week"]
         .sort_values()
@@ -318,13 +334,15 @@ def get_song_weekly_trend(music_dataframe, title):
         all_weeks,
         fill_value=0
     )
-def get_song_loyalty_summary(music_dataframe):
+def get_song_loyalty_summary(music_dataframe: pd.DataFrame):
     song_counts = music_dataframe["title"].value_counts()
 
     one_time_songs = (song_counts == 1).sum()
     repeated_songs = (song_counts > 1).sum()
 
     total_plays = song_counts.sum()
+    # Each distinct title contributes one first play; every later play
+    # of that title counts toward repeat listening.
     first_plays = len(song_counts)
     repeat_plays = total_plays - first_plays
 
@@ -337,7 +355,7 @@ def get_song_loyalty_summary(music_dataframe):
         "repeat_play_percentage": repeat_plays / total_plays * 100 if total_plays else 0.0,
     }
 
-def get_song_week_persistence(music_dataframe, limit=10):
+def get_song_week_persistence(music_dataframe: pd.DataFrame, limit: int = 10) -> pd.Series:
     weekly_song_counts = get_weekly_song_counts(music_dataframe)
 
     weeks_per_song = (
@@ -350,7 +368,7 @@ def get_song_week_persistence(music_dataframe, limit=10):
 
     return weeks_per_song
 
-def get_song_rankings_by_week(music_dataframe, limit=5):
+def get_song_rankings_by_week(music_dataframe: pd.DataFrame, limit: int = 5) -> pd.DataFrame:
     dataframe = music_dataframe.copy()
 
     dataframe["week"] = (
@@ -375,6 +393,8 @@ def get_song_rankings_by_week(music_dataframe, limit=5):
         .reset_index()
     )
 
+    # Ranking before filtering keeps positions relative to the whole
+    # library, rather than just the songs selected for the chart.
     # Rank ALL songs within each week
     weekly_song_counts["rank"] = (
         weekly_song_counts
