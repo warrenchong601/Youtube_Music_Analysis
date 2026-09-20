@@ -8,6 +8,18 @@ The project started with exploring the data in Jupyter notebooks. I then moved
 the parsing, classification and analysis into reusable Python files, added a
 FastAPI backend, and built a frontend to display the results.
 
+## Live Demo
+
+[Open the YouTube Music Analysis dashboard](https://youtube-music-analysis.onrender.com/)
+
+The demo is hosted on Render's free tier. The first request after a period of
+inactivity may take some time while the service starts.
+
+Uploaded histories on the live demo are temporary. Render's free service uses
+ephemeral storage, so imported reports are lost when the service restarts,
+redeploys or spins down. Keep your original export if you want to import it again.
+See [Render's free service documentation](https://render.com/docs/free) for details.
+
 ## What it shows
 
 The dashboard includes:
@@ -21,6 +33,10 @@ The dashboard includes:
 
 You can view the original report or upload your own watch history to generate
 another report.
+
+The repository includes a processed snapshot of my listening data at
+`data/processed/music_history.csv` for the original report. Raw Google Takeout
+history is not included; `data/raw/` is excluded through `.gitignore`.
 
 ## How it works
 
@@ -38,14 +54,22 @@ song. Videos with an inconclusive Shorts check are left out of the report, but
 are not treated as confirmed non-music. A short duration alone does not exclude
 a song.
 
+Explicit Shorts URLs and titles labelled `#short` or `#shorts` are excluded.
+Other candidates longer than three minutes skip the Shorts request; remaining
+candidates are checked using YouTube's redirects. This check depends on YouTube's
+web behaviour and is not a guaranteed way to identify Shorts. Only confirmed or
+probable music is included in the final report; candidates marked for review are
+left out. Import decisions are saved in `data/imports/<token>/decisions.json`.
+
 Listening time is also an estimate. Takeout records when a video was watched,
 not how much of it was played. My original report includes a few manual duration
 adjustments for long videos; these are not applied to uploaded histories.
 
 ## Running the project
 
-You will need Python 3.10 or later. From the project folder, install the
-dependencies:
+The project specifies Python **3.14.5** in `.python-version`. Use that version
+locally to match the configured runtime. From the project folder, install the
+dependencies listed in `requirements.txt`, preferably in a virtual environment:
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -70,6 +94,31 @@ python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 Then open [the dashboard](http://127.0.0.1:8000/dashboard/) in your browser.
 Use a single server worker, as the import queue is managed by that process.
 
+## Deployment
+
+The application runs as one Render web service. FastAPI serves both the API and
+the frontend files at `/dashboard/`, and `/` redirects to the dashboard. The
+frontend sends requests to the same service, so it does not need a separate host
+or build step.
+
+For a Render Python web service, use this build command:
+
+```sh
+python -m pip install -r requirements.txt
+```
+
+And this start command:
+
+```sh
+python -m uvicorn src.api:app --host 0.0.0.0 --port $PORT --workers 1
+```
+
+Set `YOUTUBE_API_KEY` in Render's environment settings rather than uploading the
+local `.env` file. The processed snapshot provides the default report without
+new API requests. Imports need the server's API key and available YouTube API
+quota. The repository does not contain a `render.yaml`; deployment settings are
+managed in Render's dashboard.
+
 ## Using your own history
 
 1. Go to [Google Takeout](https://takeout.google.com/) and export your YouTube
@@ -90,12 +139,29 @@ which import belongs to you; closing it can lose that reference. Use **Delete my
 imported data** when you want to remove the saved report.
 
 The raw upload is not saved to disk. The processed CSV, classification decisions
-and import status are saved under `data/imports/` until deleted. Completed imports
-can be reopened after a server restart if the tab still has their reference.
-Interrupted imports need to be deleted and imported again.
+and import status are saved under `data/imports/`, which is excluded from Git.
+When running locally, these files remain until deleted, and completed imports can
+be reopened after a server restart if the tab still has their reference. On the
+hosted Render version, these files are temporary and are lost on restart,
+redeployment or spin-down. The original report comes from the repository snapshot
+and is included again with each deployment.
 
-This is intended to run locally. It does not have user accounts, and anyone who
-can access the server can view the original report.
+Interrupted imports cannot resume because the raw upload is held only in memory.
+Delete the failed import and try again. If Render has already removed its files,
+open a new browser tab and upload the history again.
+
+The application does not have user accounts. Each imported report is accessed
+using a random token stored in that browser tab; anyone with that token can access
+the import while it exists. The original report is public on the live demo.
+
+## Technologies Used
+
+- Python and pandas for the data pipeline and analysis
+- Beautiful Soup and lxml for HTML parsing, and Requests for YouTube requests
+- FastAPI and Uvicorn for the backend
+- HTML, CSS, JavaScript and Chart.js for the dashboard
+- Jupyter notebooks and Matplotlib for the original exploration
+- Python's `unittest` and FastAPI's test client for automated tests
 
 ## Project structure
 
@@ -109,7 +175,12 @@ can access the server can view the original report.
 - `src/main.py` — running the original history through the pipeline
 - `frontend/` — the dashboard's HTML, CSS and JavaScript
 - `tests/` — automated tests and reference results
-- `data/` — local history files and generated reports
+- `data/processed/music_history.csv` — the processed snapshot used by the default report
+- `data/raw/` — local Takeout exports, not included in Git
+- `data/imports/` — generated import files, not included in Git
+- `.python-version` — the configured Python version, 3.14.5
+- `requirements.txt` — Python dependencies
+- `.env` — the local API key configuration, not included in Git
 
 ## Rebuilding the original report
 

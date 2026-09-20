@@ -221,7 +221,7 @@ const LOCAL_API_ORIGIN = "http://127.0.0.1:8000";
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const IMPORT_POLL_INTERVAL_MS = 1500;
 const WEEK_PAGE_SIZE = 12;
-const API_BASE = (location.pathname.startsWith("/dashboard") || location.port === "8000") ? location.origin : LOCAL_API_ORIGIN;
+const API_BASE = location.origin;
 const activeDataset = sessionStorage.getItem("musicDataset");
 async function fetchData(url) {
     url = API_BASE + url;
@@ -990,7 +990,7 @@ Promise.allSettled(loaders.map(load => load())).then(results => {
     if (failed.length) {
         const status = document.getElementById("load_status");
         status.hidden = false;
-        status.textContent = "Some listening data could not load. Check that the API is running at 127.0.0.1:8000, then refresh.";
+        status.textContent = "Some listening data could not load. Please refresh the page and try again.";
         failed.forEach(result => console.error(result.reason));
     }
 });
