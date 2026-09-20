@@ -2,155 +2,169 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A dashboard exploring YouTube Music listening history.">
     <title>YouTube Music Analysis</title>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <h1>YouTube Music Analysis</h1>
-        <p>Analysis of my Youtube listening history.</p>
-
-    <h2>Overview</h2>
-        <div class="summary-cards">
-
-            <div class="stat-card">
-                <h3>Music Plays</h3>
-                <p id="music_plays">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Unique Videos</h3>
-                <p id="unique_videos">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Unique Channels</h3>
-                <p id="unique_channels">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Listening Time</h3>
-                <p id="listening_time">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Listening Sessions</h3>
-                <p id="total_sessions">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Repeat Plays</h3>
-                <p id="repeat_percentage">0%</p>
-            </div>
-
-        </div>
-
-    <h2>The Numbers</h2>
-        <h3>Top Songs</h3>
-        <div>
-            <h3>Top Songs</h3>
-            <canvas id="top_songs"></canvas>
-        </div>
-        <h3>Top Channels</h3>
-        <div>
-            <canvas id="top_channels_chart"></canvas>
-        </div>
-        <h3>Top Songs by Week</h3>
-        <div>
-            <canvas id="weekly_songs_chart"></canvas>
-        </div>
-
-    <h2>Listens by Time</h2>
-        <div>
-            <h3>Listening over time</h3>
-            <canvas id="listening_timeline"></canvas>
-        </div>
-        <div>
-            <h3>Listening by Hour</h3>
-            <canvas id="hour_chart"></canvas>
-        </div>
-        <div>
-            <h3>Listening by Weekday</h3>
-            <canvas id="weekday_chart"></canvas>
-        </div>
-
-
-    <h2>Listening Habits</h2>
-        <h3>Song Loyalty</h3>
-            <div class="habit-cards">
-
-            <div class="stat-card">
-                <h4>One-Time Songs</h4>
-                <p id="one_time_songs">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h4>Repeated Songs</h4>
-                <p id="repeated_songs">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h4>Repeat Plays</h4>
-                <p id="repeat_plays">0</p>
-            </div>
-
-        </div>
-
-        <h3>Listening Concentration</h3>
+    <div class="page-shell">
+        <header class="site-header">
             <div>
-                <canvas id="concentration_chart"></canvas>
+                <p class="eyebrow">Personal listening report</p>
+                <h1>YouTube Music Analysis</h1>
+                <p class="header-copy">A closer look at what I listen to, when I listen, and which songs keep coming back.</p>
             </div>
-
-        <h3>Songs That Stuck Around</h3>
-            <div>
-                <canvas id="persistent_songs_chart"></canvas>
+            <div class="header-mark" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
             </div>
+        </header>
 
-        <h3>Session Highlights</h3>
+        <main>
+            <p id="load_status" class="load-status" role="status" hidden></p>
+            <section class="dashboard-section" aria-labelledby="overview-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-number">01</p>
+                        <h2 id="overview-title">Overview</h2>
+                    </div>
+                    <p>Music plays count listening records, including repeats. Unique videos count distinct videos.</p>
+                </div>
 
-<div class="session-highlights">
+                <div class="stat-grid">
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">▶</span>Music Plays</p><p class="stat-value" id="music_plays">—</p></article>
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">♫</span>Unique Videos</p><p class="stat-value" id="unique_videos">—</p></article>
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">◉</span>Unique Channels</p><p class="stat-value" id="unique_channels">—</p></article>
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">◷</span>Est. Listening Time</p><p class="stat-value" id="listening_time">—</p></article>
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">🎧</span>Listening Sessions</p><p class="stat-value" id="total_sessions">—</p></article>
+                    <article class="stat-card accent-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">↻</span>Repeat Plays</p><p class="stat-value" id="repeat_percentage">—</p></article>
+                </div>
 
-    <div class="session-card">
-        <h4>Largest Session</h4>
+                <div class="chart-grid chart-grid--two">
+                    <article class="chart-card">
+                        <div class="card-heading"><div><p class="card-kicker">Most played</p><h3>Top Songs</h3></div></div>
+                        <div class="chart-wrap chart-wrap--bar chart-wrap--top-songs"><canvas id="top_songs"></canvas></div>
+                    </article>
+                    <article class="chart-card">
+                        <div class="card-heading"><div><p class="card-kicker">Favourite sources</p><h3>Top Channels</h3></div></div>
+                        <div class="chart-wrap chart-wrap--bar"><canvas id="top_channels_chart"></canvas></div>
+                    </article>
+                </div>
 
-        <p>
-            Songs played:
-            <span id="largest_session_events">0</span>
-        </p>
+                <article class="chart-card chart-card--wide">
+                    <div class="card-heading"><div><p class="card-kicker">Weekly leaders</p><h3>Top Songs by Week</h3></div></div>
+                    <p class="chart-description">Each bar shows the winning song’s plays. See the titles and any joint winners below.</p>
+                    <div class="week-controls"><button id="weeks_previous" type="button">← Earlier</button><p id="weeks_range" aria-live="polite"></p><button id="weeks_next" type="button">Later →</button></div>
+                    <div class="chart-scroll weekly-chart-scroll" tabindex="0" role="region" aria-label="Weekly chart; scroll horizontally to see every week"><div class="chart-wrap chart-wrap--timeline"><canvas id="weekly_songs_chart"></canvas></div></div>
+                    <div class="table-scroll"><table class="weekly-table"><caption>Weekly winning songs</caption><thead><tr><th scope="col">Week</th><th scope="col">Top song</th><th scope="col">Plays</th></tr></thead><tbody id="weekly_winners"></tbody></table></div>
+                </article>
+            </section>
 
-        <p>
-            Date:
-            <span id="largest_session_date"></span>
-        </p>
+            <section class="dashboard-section" aria-labelledby="activity-title">
+                <div class="section-heading">
+                    <div><p class="section-number">02</p><h2 id="activity-title">Listening Activity</h2></div>
+                    <p>How listening changes across days, hours, and weekdays.</p>
+                </div>
 
-        <p>
-            Listening time:
-            <span id="largest_session_duration"></span>
-        </p>
+                <article class="chart-card chart-card--wide">
+                    <div class="card-heading"><div><p class="card-kicker">Daily activity</p><h3>Listening Over Time</h3></div></div>
+                    <div class="chart-wrap chart-wrap--timeline"><canvas id="listening_timeline"></canvas></div>
+                </article>
+
+                <div class="chart-grid chart-grid--two">
+                    <article class="chart-card">
+                        <div class="card-heading"><div><p class="card-kicker">Time of day</p><h3>Listening by Hour</h3></div></div>
+                        <div class="chart-wrap"><canvas id="hour_chart"></canvas></div>
+                    </article>
+                    <article class="chart-card">
+                        <div class="card-heading"><div><p class="card-kicker">Day of week</p><h3>Listening by Weekday</h3></div></div>
+                        <div class="chart-wrap"><canvas id="weekday_chart"></canvas></div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="dashboard-section" aria-labelledby="habits-title">
+                <div class="section-heading">
+                    <div><p class="section-number">03</p><h2 id="habits-title">Listening Habits</h2></div>
+                    <p>Repeat behaviour, concentration, and session highlights.</p>
+                </div>
+
+                <div class="subsection-heading"><h3>Song Loyalty</h3></div>
+                <div class="stat-grid stat-grid--compact">
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">♪</span>One-Time Songs</p><p class="stat-value" id="one_time_songs">—</p></article>
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">↺</span>Repeated Songs</p><p class="stat-value" id="repeated_songs">—</p></article>
+                    <article class="stat-card"><p class="stat-label"><span class="stat-icon" aria-hidden="true">↻</span>Repeat Plays</p><p class="stat-value" id="repeat_plays">—</p></article>
+                </div>
+
+                <div class="chart-grid chart-grid--two">
+                    <article class="chart-card">
+                        <div class="card-heading"><div><p class="card-kicker">Share of all plays</p><h3>Listening Concentration</h3></div></div>
+                        <div class="chart-wrap"><canvas id="concentration_chart"></canvas></div>
+                    </article>
+                    <article class="chart-card">
+                        <div class="card-heading"><div><p class="card-kicker">Long-term favourites</p><h3>Songs That Stuck Around</h3></div></div>
+                        <div class="chart-wrap chart-wrap--bar"><canvas id="persistent_songs_chart"></canvas></div>
+                    </article>
+                </div>
+
+                <div class="subsection-heading"><h3>Session Highlights</h3></div>
+                <div class="session-grid">
+                    <article class="session-card">
+                        <div class="session-icon" aria-hidden="true">↗</div>
+                        <div><p class="card-kicker">Most plays</p><h4>Largest Session</h4></div>
+                        <dl>
+                            <div class="session-hero"><dt>Music plays</dt><dd id="largest_session_events">0</dd></div>
+                            <div><dt>Date</dt><dd id="largest_session_date">—</dd></div>
+                            <div><dt>Est. listening time</dt><dd id="largest_session_duration">—</dd></div>
+                        </dl><p class="session-favourite" id="largest_session_favourite"></p>
+                    </article>
+                    <article class="session-card">
+                        <div class="session-icon" aria-hidden="true">⌁</div>
+                        <div><p class="card-kicker">Most time</p><h4>Longest Session</h4></div>
+                        <dl>
+                            <div><dt>Music plays</dt><dd id="longest_session_events">0</dd></div>
+                            <div><dt>Date</dt><dd id="longest_session_date">—</dd></div>
+                            <div class="session-hero"><dt>Est. listening time</dt><dd id="longest_session_duration">—</dd></div>
+                        </dl><p class="session-favourite" id="longest_session_favourite"></p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="dashboard-section" aria-labelledby="trends-title">
+                <div class="section-heading">
+                    <div><p class="section-number">04</p><h2 id="trends-title">Song Trends</h2></div>
+                    <p>Track rank movement and explore an individual song.</p>
+                </div>
+
+                <article class="chart-card chart-card--wide ranking-card">
+                    <div class="card-heading">
+                        <div><p class="card-kicker">Weekly movement</p><h3>Song Rankings Over Time</h3></div>
+                        <p class="card-note">Rank 1 is highest. Gaps mean no plays that week.</p>
+                    </div>
+                    <div class="select-field ranking-select"><label for="ranking_selector">Song to follow</label><select id="ranking_selector"></select></div>
+                    <div class="chart-scroll" tabindex="0" role="region" aria-label="Song rankings; scroll horizontally on smaller screens">
+                        <div class="chart-wrap chart-wrap--rankings"><canvas id="song_rankings_chart"></canvas></div>
+                    </div>
+                </article>
+
+                <article class="chart-card chart-card--wide trend-card">
+                    <div class="card-heading card-heading--controls">
+                        <div><p class="card-kicker">Individual history</p><h3>Explore a Song Trend</h3></div>
+                        <div class="select-field">
+                            <label for="song_selector">Choose a song</label>
+                            <select id="song_selector"><option value="">Select a song...</option></select>
+                        </div>
+                    </div>
+                    <div class="chart-wrap chart-wrap--timeline"><canvas id="song_trend_chart"></canvas></div>
+                </article>
+            </section>
+        </main>
+
+        <footer><p>YouTube Music listening analysis</p></footer>
     </div>
-
-
-    <div class="session-card">
-        <h4>Longest Session</h4>
-
-        <p>
-            Songs played:
-            <span id="longest_session_events">0</span>
-        </p>
-
-        <p>
-            Date:
-            <span id="longest_session_date"></span>
-        </p>
-
-        <p>
-            Listening time:
-            <span id="longest_session_duration"></span>
-        </p>
-    </div>
-
-</div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>

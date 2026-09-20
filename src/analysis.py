@@ -349,6 +349,15 @@ def get_song_rankings_by_week(music_dataframe, limit=5):
         .dt.to_period("W")
     )
 
+    # Find overall top songs
+    top_songs = (
+        dataframe["title"]
+        .value_counts()
+        .head(limit)
+        .index
+    )
+
+    # Count every song within every week
     weekly_song_counts = (
         dataframe
         .groupby(["week", "title"])
@@ -357,16 +366,18 @@ def get_song_rankings_by_week(music_dataframe, limit=5):
         .reset_index()
     )
 
+    # Rank ALL songs within each week
     weekly_song_counts["rank"] = (
         weekly_song_counts
         .groupby("week")["plays"]
         .rank(method="min", ascending=False)
     )
 
-    top_rankings = weekly_song_counts[
-        weekly_song_counts["rank"] <= limit
+    # Only keep our overall top songs
+    rankings = weekly_song_counts[
+        weekly_song_counts["title"].isin(top_songs)
     ].copy()
 
-    top_rankings["rank"] = top_rankings["rank"].astype(int)
+    rankings["rank"] = rankings["rank"].astype(int)
 
-    return top_rankings
+    return rankings
