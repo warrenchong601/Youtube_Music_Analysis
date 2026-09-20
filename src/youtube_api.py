@@ -1,4 +1,9 @@
+import logging
 import os
+from collections.abc import Iterable
+from urllib.parse import parse_qs, urlparse
+
+import pandas as pd
 import requests
 from dotenv import load_dotenv
 
@@ -15,6 +20,42 @@ YOUTUBE_VIDEOS_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNELS_ENDPOINT = "https://www.googleapis.com/youtube/v3/channels"
 
 BATCH_SIZE = 50
+METADATA_TIMEOUT_SECONDS = 20
+SHORTS_TIMEOUT_SECONDS = 10
+YOUTUBE_HOSTS = {"www.youtube.com", "youtube.com", "m.youtube.com"}
+logger = logging.getLogger(__name__)
+
+# ============================================================
+# Shared Request Helpers
+# ============================================================
+
+
+def create_id_batches(identifiers: Iterable[str]) -> list[str]:
+    identifiers = list(identifiers)
+    return [
+        ",".join(identifiers[start_index:start_index + BATCH_SIZE])
+        for start_index in range(0, len(identifiers), BATCH_SIZE)
+    ]
+
+
+def fetch_metadata(endpoint: str, request_params: dict) -> dict:
+    if not API_KEY:
+        raise ValueError("Set YOUTUBE_API_KEY on the server before importing history.")
+
+    response = requests.get(
+        timeout=METADATA_TIMEOUT_SECONDS, url=endpoint, params=request_params
+    )
+    # API failures must stop the import rather than resemble a successful
+    # empty response, which would silently remove videos from the report.
+    response.raise_for_status()
+    try:
+        metadata = response.json()
+    except ValueError as error:
+        raise ValueError("YouTube returned invalid JSON metadata. Please try again.") from error
+    if not isinstance(metadata, dict) or not isinstance(metadata.get("items"), list):
+        raise ValueError("YouTube returned malformed metadata: expected an items array.")
+    return metadata
+
 
 # ============================================================
 # Video Metadata Requests
@@ -22,20 +63,11 @@ BATCH_SIZE = 50
 
 # The YouTube Data API accepts up to 50 video IDs in a single videos.list
 # request, so IDs are combined into comma-separated batches.
-def create_video_batches(dataframe):
-    combined_video_ids_batch = []
+def create_video_batches(dataframe: pd.DataFrame) -> list[str]:
+    return create_id_batches(dataframe["video_ids"])
 
-    for start_index in range(0, len(dataframe), BATCH_SIZE):
-        video_ids_batch = dataframe["video_ids"][
-            start_index:start_index + BATCH_SIZE
-        ]
 
-        combined_video_ids = ",".join(video_ids_batch)
-        combined_video_ids_batch.append(combined_video_ids)
-
-    return combined_video_ids_batch
-
-def create_video_request(video_ids):
+def create_video_request(video_ids: str) -> dict:
     # snippet provides title/channel/category metadata,
     # while contentDetails provides video duration used later in the classification pipeline.
     params_dict = {
@@ -46,16 +78,9 @@ def create_video_request(video_ids):
 
     return params_dict
 
-def fetch_video_metadata(video_id):
+def fetch_video_metadata(video_id: str) -> dict:
     request_params = create_video_request(video_id)
-
-    if not API_KEY:
-        raise ValueError("Set YOUTUBE_API_KEY on the server before importing history.")
-
-    response = requests.get(timeout=20, url=YOUTUBE_VIDEOS_ENDPOINT, params=request_params)
-    response.raise_for_status()
-
-    return response.json()
+    return fetch_metadata(YOUTUBE_VIDEOS_ENDPOINT, request_params)
 
 # ============================================================
 # Channel Metadata Requests
@@ -63,21 +88,11 @@ def fetch_video_metadata(video_id):
 
 # Channel IDs are batched to reduce the number of API requests required
 # when retrieving topic metadata.
-def create_channel_batches(channel_ids):
-    channel_ids = list(channel_ids)
-    channel_id_batches = []
+def create_channel_batches(channel_ids: Iterable[str]) -> list[str]:
+    return create_id_batches(channel_ids)
 
-    for start_index in range(0, len(channel_ids), BATCH_SIZE):
-        channel_ids_batch = channel_ids[
-            start_index:start_index + BATCH_SIZE
-        ]
 
-        combined_channel_ids = ",".join(channel_ids_batch)
-        channel_id_batches.append(combined_channel_ids)
-
-    return channel_id_batches
-
-def create_channel_request(channel_id):
+def create_channel_request(channel_id: str) -> dict:
     # topicDetails provides YouTube topic IDs used to identify music-focused channels.
     channel_params = {
         "part": "snippet,topicDetails",
@@ -87,17 +102,9 @@ def create_channel_request(channel_id):
 
     return channel_params
 
-def fetch_channel_metadata(channel_id):
+def fetch_channel_metadata(channel_id: str) -> dict:
     request_params = create_channel_request(channel_id)
-
-    if not API_KEY:
-        raise ValueError("Set YOUTUBE_API_KEY on the server before importing history.")
-
-    response = requests.get(timeout=20, url=YOUTUBE_CHANNELS_ENDPOINT, params=request_params)
-
-    response.raise_for_status()
-
-    return response.json()
+    return fetch_metadata(YOUTUBE_CHANNELS_ENDPOINT, request_params)
 
 # ============================================================
 # YouTube Shorts Detection
@@ -106,7 +113,7 @@ def fetch_channel_metadata(channel_id):
 # The YouTube Data API does not directly identify whether a video is a Short.
 # Redirects provide a heuristic only. None means the check was inconclusive.
 # Retry consent/unexpected responses with the default HTTP client user agent.
-def is_short(video_id, max_attempts=2):
+def is_short(video_id: str, max_attempts: int = 2) -> bool | None:
     video_url = f"https://www.youtube.com/shorts/{video_id}"
 
     headers = {
@@ -122,28 +129,24 @@ def is_short(video_id, max_attempts=2):
             response = requests.get(
                 video_url,
                 headers=headers if attempt == 0 else {},
-                timeout=10
+                timeout=SHORTS_TIMEOUT_SECONDS
             )
 
-            from urllib.parse import urlparse, parse_qs
             response.raise_for_status()
-            final = urlparse(response.url)
-            if final.hostname not in {"www.youtube.com", "youtube.com", "m.youtube.com"}:
+            final_url = urlparse(response.url)
+            # Consent and unrelated redirects do not identify the video
+            # format, even when the HTTP request itself succeeded.
+            if final_url.hostname not in YOUTUBE_HOSTS:
                 continue
-            if final.path.rstrip("/") == f"/shorts/{video_id}":
+            if final_url.path.rstrip("/") == f"/shorts/{video_id}":
                 return True
-            if final.path == "/watch" and parse_qs(final.query).get("v") == [video_id]:
+            if final_url.path == "/watch" and parse_qs(final_url.query).get("v") == [video_id]:
                 return False
-            continue
 
-        except requests.RequestException as error:
-            print(
-                f"Shorts check failed for {video_id} "
-                f"(attempt {attempt + 1}/{max_attempts}): {error}"
+        except (requests.RequestException, ValueError) as error:
+            logger.warning(
+                "Shorts check failed for %s (attempt %s/%s): %s",
+                video_id, attempt + 1, max_attempts, error,
             )
 
     return None
-
-##Filler is_short function to bypass making lots of indivudal calls to Youtube's API slowing down the function
-def fake_is_short(video_id):
-    return False

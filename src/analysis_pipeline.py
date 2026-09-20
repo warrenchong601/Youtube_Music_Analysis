@@ -1,3 +1,5 @@
+import pandas as pd
+
 from src import analysis
 
 
@@ -5,12 +7,22 @@ from src import analysis
 # Analysis Pipeline
 # ============================================================
 
-def prepare_analysis_dataframe(music_dataframe, use_personal_overrides=True):
+def prepare_analysis_dataframe(
+    music_dataframe: pd.DataFrame,
+    use_personal_overrides: bool = True,
+) -> pd.DataFrame:
     """Add derived fields required by the analysis functions."""
 
+    # Derived columns should not alter the caller's original watch records.
     music_dataframe = music_dataframe.copy()
+    # Convert to UTC before removing timezone information so weekly
+    # periods and other date groupings use the same reference time.
     if music_dataframe["watched_at"].dt.tz is not None:
-        music_dataframe["watched_at"] = music_dataframe["watched_at"].dt.tz_convert("UTC").dt.tz_localize(None)
+        music_dataframe["watched_at"] = (
+            music_dataframe["watched_at"]
+            .dt.tz_convert("UTC")
+            .dt.tz_localize(None)
+        )
 
     music_dataframe = analysis.add_duration_seconds(
         music_dataframe
@@ -30,7 +42,7 @@ def prepare_analysis_dataframe(music_dataframe, use_personal_overrides=True):
 
     return music_dataframe
 
-def run_music_analysis(music_dataframe):
+def run_music_analysis(music_dataframe: pd.DataFrame):
     """Calculate the statistics exposed by the music analysis."""
 
     analysis_results = {

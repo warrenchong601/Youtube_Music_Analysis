@@ -1,0 +1,712 @@
+{
+  "/api/summary": {
+    "music_plays": 40,
+    "unique_videos": 5,
+    "unique_channels": 3
+  },
+  "/api/listening-time": {
+    "total_seconds": 43680,
+    "formatted_time": "12H:08M:00S"
+  },
+  "/api/top-songs": [
+    {
+      "title": "Song A",
+      "plays": 16
+    },
+    {
+      "title": "Song B",
+      "plays": 8
+    },
+    {
+      "title": "Song C",
+      "plays": 8
+    },
+    {
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "plays": 8
+    }
+  ],
+  "/api/song-concentration": [
+    {
+      "top_n": 1,
+      "plays": 16,
+      "percentage": 40.0
+    },
+    {
+      "top_n": 3,
+      "plays": 32,
+      "percentage": 80.0
+    },
+    {
+      "top_n": 5,
+      "plays": 40,
+      "percentage": 100.0
+    },
+    {
+      "top_n": 10,
+      "plays": 40,
+      "percentage": 100.0
+    },
+    {
+      "top_n": 25,
+      "plays": 40,
+      "percentage": 100.0
+    }
+  ],
+  "/api/top-channels": [
+    {
+      "channel": "Artist 0",
+      "plays": 14
+    },
+    {
+      "channel": "Artist 1",
+      "plays": 13
+    },
+    {
+      "channel": "Artist 2",
+      "plays": 13
+    }
+  ],
+  "/api/listening-by-hour": [
+    {
+      "hour": 0,
+      "plays": 30
+    },
+    {
+      "hour": 1,
+      "plays": 10
+    }
+  ],
+  "/api/listening-by-weekday": [
+    {
+      "weekday": "Monday",
+      "plays": 4
+    },
+    {
+      "weekday": "Tuesday",
+      "plays": 4
+    },
+    {
+      "weekday": "Wednesday",
+      "plays": 8
+    },
+    {
+      "weekday": "Thursday",
+      "plays": 8
+    },
+    {
+      "weekday": "Friday",
+      "plays": 4
+    },
+    {
+      "weekday": "Saturday",
+      "plays": 4
+    },
+    {
+      "weekday": "Sunday",
+      "plays": 8
+    }
+  ],
+  "/api/listening-by-date": [
+    {
+      "date": "2026-01-01",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-04",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-07",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-10",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-13",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-16",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-19",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-22",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-25",
+      "plays": 4
+    },
+    {
+      "date": "2026-01-28",
+      "plays": 4
+    }
+  ],
+  "/api/listening-by-week": [
+    {
+      "week": "2025-12-29/2026-01-04",
+      "songs": [
+        {
+          "title": "Song A",
+          "plays": 3
+        },
+        {
+          "title": "Song B",
+          "plays": 2
+        },
+        {
+          "title": "Song C",
+          "plays": 2
+        },
+        {
+          "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+          "plays": 1
+        }
+      ]
+    },
+    {
+      "week": "2026-01-05/2026-01-11",
+      "songs": [
+        {
+          "title": "Song A",
+          "plays": 4
+        },
+        {
+          "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+          "plays": 2
+        },
+        {
+          "title": "Song B",
+          "plays": 1
+        },
+        {
+          "title": "Song C",
+          "plays": 1
+        }
+      ]
+    },
+    {
+      "week": "2026-01-12/2026-01-18",
+      "songs": [
+        {
+          "title": "Song A",
+          "plays": 3
+        },
+        {
+          "title": "Song B",
+          "plays": 2
+        },
+        {
+          "title": "Song C",
+          "plays": 2
+        },
+        {
+          "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+          "plays": 1
+        }
+      ]
+    },
+    {
+      "week": "2026-01-19/2026-01-25",
+      "songs": [
+        {
+          "title": "Song A",
+          "plays": 5
+        },
+        {
+          "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+          "plays": 3
+        },
+        {
+          "title": "Song B",
+          "plays": 2
+        },
+        {
+          "title": "Song C",
+          "plays": 2
+        }
+      ]
+    },
+    {
+      "week": "2026-01-26/2026-02-01",
+      "songs": [
+        {
+          "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+          "plays": 1
+        },
+        {
+          "title": "Song A",
+          "plays": 1
+        },
+        {
+          "title": "Song B",
+          "plays": 1
+        },
+        {
+          "title": "Song C",
+          "plays": 1
+        }
+      ]
+    }
+  ],
+  "/api/sessions": {
+    "total_sessions": 10,
+    "average_events": 4.0,
+    "median_events": 4.0,
+    "largest_session_events": 4,
+    "average_sessions_seconds": 4368.0,
+    "longest_session_seconds": 8166
+  },
+  "/api/session-highlights": {
+    "largest_session": {
+      "session_id": 1,
+      "date": "2026-01-01",
+      "start_time": "2026-01-01T00:00:00",
+      "end_time": "2026-01-01T01:00:00",
+      "events": 4,
+      "listening_seconds": 3993,
+      "formatted_listening_time": "01H:06M:33S",
+      "top_songs": {
+        "Song A": 2,
+        "Song B": 1,
+        "Song C": 1
+      }
+    },
+    "longest_session": {
+      "session_id": 8,
+      "date": "2026-01-22",
+      "start_time": "2026-01-22T00:00:00",
+      "end_time": "2026-01-22T01:00:00",
+      "events": 4,
+      "listening_seconds": 8166,
+      "formatted_listening_time": "02H:16M:06S",
+      "top_songs": {
+        "Song A": 2,
+        "Prison Labor - Persona 5 Royal OST [Extended]": 1,
+        "Song B": 1
+      }
+    }
+  },
+  "/api/loyalty": {
+    "unique_songs": 4,
+    "one_time_songs": 0,
+    "repeated_songs": 4,
+    "first_plays": 4,
+    "repeat_plays": 36,
+    "repeat_play_percentage": 90.0
+  },
+  "/api/persistent-songs": [
+    {
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "weeks": 5
+    },
+    {
+      "title": "Song A",
+      "weeks": 5
+    },
+    {
+      "title": "Song B",
+      "weeks": 5
+    },
+    {
+      "title": "Song C",
+      "weeks": 5
+    }
+  ],
+  "/api/song-trend": {
+    "title": "Song A",
+    "trend_data": [
+      {
+        "week": "2025-12-29/2026-01-04",
+        "plays": 3
+      },
+      {
+        "week": "2026-01-05/2026-01-11",
+        "plays": 4
+      },
+      {
+        "week": "2026-01-12/2026-01-18",
+        "plays": 3
+      },
+      {
+        "week": "2026-01-19/2026-01-25",
+        "plays": 5
+      },
+      {
+        "week": "2026-01-26/2026-02-01",
+        "plays": 1
+      }
+    ]
+  },
+  "/api/song-rankings-by-week": [
+    {
+      "week": "2025-12-29/2026-01-04",
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "plays": 1,
+      "rank": 4
+    },
+    {
+      "week": "2025-12-29/2026-01-04",
+      "title": "Song A",
+      "plays": 3,
+      "rank": 1
+    },
+    {
+      "week": "2025-12-29/2026-01-04",
+      "title": "Song B",
+      "plays": 2,
+      "rank": 2
+    },
+    {
+      "week": "2025-12-29/2026-01-04",
+      "title": "Song C",
+      "plays": 2,
+      "rank": 2
+    },
+    {
+      "week": "2026-01-05/2026-01-11",
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "plays": 2,
+      "rank": 2
+    },
+    {
+      "week": "2026-01-05/2026-01-11",
+      "title": "Song A",
+      "plays": 4,
+      "rank": 1
+    },
+    {
+      "week": "2026-01-05/2026-01-11",
+      "title": "Song B",
+      "plays": 1,
+      "rank": 3
+    },
+    {
+      "week": "2026-01-05/2026-01-11",
+      "title": "Song C",
+      "plays": 1,
+      "rank": 3
+    },
+    {
+      "week": "2026-01-12/2026-01-18",
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "plays": 1,
+      "rank": 4
+    },
+    {
+      "week": "2026-01-12/2026-01-18",
+      "title": "Song A",
+      "plays": 3,
+      "rank": 1
+    },
+    {
+      "week": "2026-01-12/2026-01-18",
+      "title": "Song B",
+      "plays": 2,
+      "rank": 2
+    },
+    {
+      "week": "2026-01-12/2026-01-18",
+      "title": "Song C",
+      "plays": 2,
+      "rank": 2
+    },
+    {
+      "week": "2026-01-19/2026-01-25",
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "plays": 3,
+      "rank": 2
+    },
+    {
+      "week": "2026-01-19/2026-01-25",
+      "title": "Song A",
+      "plays": 5,
+      "rank": 1
+    },
+    {
+      "week": "2026-01-19/2026-01-25",
+      "title": "Song B",
+      "plays": 2,
+      "rank": 3
+    },
+    {
+      "week": "2026-01-19/2026-01-25",
+      "title": "Song C",
+      "plays": 2,
+      "rank": 3
+    },
+    {
+      "week": "2026-01-26/2026-02-01",
+      "title": "Prison Labor - Persona 5 Royal OST [Extended]",
+      "plays": 1,
+      "rank": 1
+    },
+    {
+      "week": "2026-01-26/2026-02-01",
+      "title": "Song A",
+      "plays": 1,
+      "rank": 1
+    },
+    {
+      "week": "2026-01-26/2026-02-01",
+      "title": "Song B",
+      "plays": 1,
+      "rank": 1
+    },
+    {
+      "week": "2026-01-26/2026-02-01",
+      "title": "Song C",
+      "plays": 1,
+      "rank": 1
+    }
+  ],
+  "classification": [
+    {
+      "video_title": "official audio",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "official audio",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "official audio",
+      "classification": "confirmed_music",
+      "reason": "strong_music_title",
+      "evidence": [
+        "official audio"
+      ]
+    },
+    {
+      "video_title": "official audio",
+      "classification": "confirmed_music",
+      "reason": "strong_music_title",
+      "evidence": [
+        "official audio"
+      ]
+    },
+    {
+      "video_title": "reaction",
+      "classification": "non_music",
+      "reason": "strong_non_music_title",
+      "evidence": [
+        "reaction"
+      ]
+    },
+    {
+      "video_title": "reaction",
+      "classification": "non_music",
+      "reason": "strong_non_music_title",
+      "evidence": [
+        "reaction"
+      ]
+    },
+    {
+      "video_title": "reaction",
+      "classification": "non_music",
+      "reason": "strong_non_music_title",
+      "evidence": [
+        "reaction"
+      ]
+    },
+    {
+      "video_title": "reaction",
+      "classification": "non_music",
+      "reason": "strong_non_music_title",
+      "evidence": [
+        "reaction"
+      ]
+    },
+    {
+      "video_title": "reaction music video",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "reaction music video",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "reaction music video",
+      "classification": "review",
+      "reason": "conflicting_strong_title_evidence",
+      "evidence": {
+        "classification": "conflict",
+        "strong_music_matches": [
+          "music video"
+        ],
+        "weak_music_matches": [],
+        "strong_non_music_matches": [
+          "reaction"
+        ],
+        "weak_non_music_matches": []
+      }
+    },
+    {
+      "video_title": "reaction music video",
+      "classification": "review",
+      "reason": "conflicting_strong_title_evidence",
+      "evidence": {
+        "classification": "conflict",
+        "strong_music_matches": [
+          "music video"
+        ],
+        "weak_music_matches": [],
+        "strong_non_music_matches": [
+          "reaction"
+        ],
+        "weak_non_music_matches": []
+      }
+    },
+    {
+      "video_title": "song",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "song",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "song",
+      "classification": "probable_music",
+      "reason": "weak_music_title",
+      "evidence": [
+        "song"
+      ]
+    },
+    {
+      "video_title": "song",
+      "classification": "confirmed_music",
+      "reason": "distributed_music_release",
+      "evidence": null
+    },
+    {
+      "video_title": "song top 10",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "song top 10",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "song top 10",
+      "classification": "review",
+      "reason": "conflicting_weak_title_evidence",
+      "evidence": {
+        "classification": "uncertain",
+        "strong_music_matches": [],
+        "weak_music_matches": [
+          "song"
+        ],
+        "strong_non_music_matches": [],
+        "weak_non_music_matches": [
+          "top 10"
+        ]
+      }
+    },
+    {
+      "video_title": "song top 10",
+      "classification": "confirmed_music",
+      "reason": "distributed_music_release",
+      "evidence": null
+    },
+    {
+      "video_title": "ordinary",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "ordinary",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "ordinary",
+      "classification": "probable_music",
+      "reason": "youtube_music_category_only",
+      "evidence": null
+    },
+    {
+      "video_title": "ordinary",
+      "classification": "confirmed_music",
+      "reason": "distributed_music_release",
+      "evidence": null
+    },
+    {
+      "video_title": "discovered",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "discovered",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "discovered",
+      "classification": "probable_music",
+      "reason": "youtube_music_category_only",
+      "evidence": null
+    },
+    {
+      "video_title": "discovered",
+      "classification": "confirmed_music",
+      "reason": "distributed_music_release",
+      "evidence": null
+    },
+    {
+      "video_title": "COVER",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "COVER",
+      "classification": "confirmed_music",
+      "reason": "music_channel",
+      "evidence": null
+    },
+    {
+      "video_title": "COVER",
+      "classification": "confirmed_music",
+      "reason": "strong_music_title",
+      "evidence": [
+        "cover"
+      ]
+    },
+    {
+      "video_title": "COVER",
+      "classification": "confirmed_music",
+      "reason": "strong_music_title",
+      "evidence": [
+        "cover"
+      ]
+    }
+  ]
+}

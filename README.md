@@ -69,3 +69,6 @@ It requires YouTube API access and may take several minutes.
 Tests mock YouTube responses, covering classification errors, HTML/JSON parsing,
 timezone handling, repeated listens, upload validation, dataset isolation,
 restart persistence, deletion and all dashboard endpoints with an empty report.
+Regression fixtures also compare every analysis endpoint and classification precedence
+against the pre-refactor results. Additional tests cover duration boundaries, batching,
+malformed metadata, daylight-saving timestamps and storage failures.

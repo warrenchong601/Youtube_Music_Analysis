@@ -1,8 +1,12 @@
 import re
+from collections.abc import Callable
 
 # ============================================================
 # Constants / Classification Rules
 # ============================================================
+
+MUSIC_CATEGORY_ID = "10"
+MUSIC_TOPIC_ID = "/m/04rlf"
 
 STRONG_MUSIC_KEYWORDS = [
     "official audio",
@@ -17,7 +21,7 @@ STRONG_MUSIC_KEYWORDS = [
 
 STRONG_MUSIC_TOKENS = ["mv", "cover", "remix", "instrumental", "lyrics"]
 
-WEAK_MUSIC_TOKENS = [ "song", "ost", "extended", "soundtrack"]
+WEAK_MUSIC_TOKENS = ["song", "ost", "extended", "soundtrack"]
 
 STRONG_NON_MUSIC_KEYWORDS = [
     "sound effect",
@@ -26,9 +30,10 @@ STRONG_NON_MUSIC_KEYWORDS = [
     "movie clip",
     "tv clip",
     "scene",
-    "funny moments",]
+    "funny moments",
+]
 
-STRONG_NON_MUSIC_TOKENS = [ "sfx" ]
+STRONG_NON_MUSIC_TOKENS = ["sfx"]
 
 WEAK_NON_MUSIC_KEYWORDS = [
     "ranking",
@@ -50,7 +55,7 @@ RELEASE_METADATA_PHRASES = [
 
 # YouTube category 10 is used as the initial music candidate filter.
 # Further heuristics remove false positives and classify ambiguous candidates.
-def extract_music_candidates(video_metadata):
+def extract_music_candidates(video_metadata: dict) -> list[dict]:
     music_candidates = []
 
     for item in video_metadata["items"]:
@@ -65,7 +70,7 @@ def extract_music_candidates(video_metadata):
         description = snippet["description"]
         video_duration = content["duration"]
 
-        if video_category == "10":
+        if video_category == MUSIC_CATEGORY_ID:
             music_candidate_entry = {
                 "video_title": video_title,
                 "video_ID": video_id,
@@ -81,15 +86,12 @@ def extract_music_candidates(video_metadata):
 # Shorts frequently receive music metadata because of their backing audio,
 # so they are removed before applying the remaining music heuristics.
 def remove_shorts_video_candidates(
-    music_candidates,
-    is_short_function
-):
+    music_candidates: list[dict],
+    is_short_function: Callable[[str], bool | None],
+) -> list[dict]:
     true_music_candidates = []
 
-    for index, music_candidate in enumerate(music_candidates):
-        print(
-            f"Checking Short {index + 1}/{len(music_candidates)}"
-        )
+    for music_candidate in music_candidates:
 
         if is_short_function(
             music_candidate.get("video_ID")
@@ -103,11 +105,11 @@ def remove_shorts_video_candidates(
 
 # YouTube's music topic ID provides strong evidence that a channel primarily
 # publishes music, but does not necessarily mean it is an official artist channel.
-def is_music_channel(topic_details):
-    return topic_details and "/m/04rlf" in topic_details.get("topicIds", [])
+def is_music_channel(topic_details: dict | None):
+    return topic_details and MUSIC_TOPIC_ID in topic_details.get("topicIds", [])
 
 
-def extract_music_channel_ids(channel_metadata):
+def extract_music_channel_ids(channel_metadata: dict) -> set[str]:
     music_channel_ids = set()
 
     for item in channel_metadata["items"]:
@@ -124,17 +126,18 @@ def extract_music_channel_ids(channel_metadata):
 # ============================================================
 
 # Finds phrases anywhere within a title, allowing partial-string matches.
-def find_keyword_matches(title, keywords):
+def find_keyword_matches(title: str, keywords: list[str]) -> list[str]:
     keywords_found = []
 
+    normalized_title = title.lower()
     for keyword in keywords:
-        if keyword in title.lower():
+        if keyword in normalized_title:
             keywords_found.append(keyword)
 
     return keywords_found
 
 # Finds standalone title tokens using word boundaries to avoid partial matches.
-def find_token_matches(title, keywords):
+def find_token_matches(title: str, keywords: list[str]) -> list[str]:
     tokens_found = []
 
     for keyword in keywords:
@@ -148,18 +151,20 @@ def find_token_matches(title, keywords):
 # Classifies title evidence independently of channel and description evidence.
 # Strong evidence determines a classification; weak evidence is retained for
 # the final candidate classifier.
-def classify_title(title):
-    classification = ""
-    strong_music_matches = (find_keyword_matches(title, STRONG_MUSIC_KEYWORDS)
-                             + find_token_matches(title, STRONG_MUSIC_TOKENS) )
+def classify_title(title: str) -> dict:
+    strong_music_matches = (
+        find_keyword_matches(title, STRONG_MUSIC_KEYWORDS)
+        + find_token_matches(title, STRONG_MUSIC_TOKENS)
+    )
 
     weak_music_matches = find_token_matches(title, WEAK_MUSIC_TOKENS)
 
-    strong_non_music_matches = (find_keyword_matches(title, STRONG_NON_MUSIC_KEYWORDS)
-                                + find_token_matches(title, STRONG_NON_MUSIC_TOKENS) )
+    strong_non_music_matches = (
+        find_keyword_matches(title, STRONG_NON_MUSIC_KEYWORDS)
+        + find_token_matches(title, STRONG_NON_MUSIC_TOKENS)
+    )
 
-    weak_non_music_matches = (find_keyword_matches(title, WEAK_NON_MUSIC_KEYWORDS))
-
+    weak_non_music_matches = find_keyword_matches(title, WEAK_NON_MUSIC_KEYWORDS)
 
     if strong_music_matches and not strong_non_music_matches:
         classification = "music"
@@ -187,7 +192,7 @@ def classify_title(title):
 # of metadata phrases that can provide strong music evidence.
 # ============================================================
 
-def is_distributed_music_release(description):
+def is_distributed_music_release(description: str | None) -> bool:
     if not description:
         return False
 
@@ -203,7 +208,9 @@ def is_distributed_music_release(description):
 # (Integrate Channel, Title and Description classification and give reasoning for identification)
 # ============================================================
 
-def classify_music_candidate(candidate, music_channel_ids):
+def classify_music_candidate(candidate: dict, music_channel_ids: set[str]) -> dict:
+    # Keep the same evidence fields for every early-return branch so
+    # saved decisions can be inspected regardless of which rule matched.
     def result(classification, reason, evidence=None):
         return {
             "video_title": title,
@@ -226,6 +233,8 @@ def classify_music_candidate(candidate, music_channel_ids):
             title_result["strong_non_music_matches"]
         )
 
+    # Rule order matters: channel evidence can resolve a conflicting
+    # title, but cannot override the strong negative result above.
     # Channel has the YouTube music topic (not proof of official artist status).
     if channel_id in music_channel_ids:
         return result(
@@ -235,10 +244,11 @@ def classify_music_candidate(candidate, music_channel_ids):
 
     # strong positive evidence/keywords in the video title
     if title_result["classification"] == "music":
-        return result("confirmed_music",
+        return result(
+            "confirmed_music",
             "strong_music_title",
             title_result["strong_music_matches"]
-            )
+        )
 
     # conflicting strong title evidence
     if title_result["classification"] == "conflict":
@@ -279,7 +289,7 @@ def classify_music_candidate(candidate, music_channel_ids):
         "youtube_music_category_only"
     )
 
-def classify_candidates(candidates, music_channel_ids):
+def classify_candidates(candidates: list[dict], music_channel_ids: set[str]) -> list[dict]:
     classified_candidates = []
     for candidate in candidates:
         result = classify_music_candidate(candidate, music_channel_ids)

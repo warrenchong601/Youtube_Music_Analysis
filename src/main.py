@@ -1,16 +1,18 @@
 from pathlib import Path
 
-from src import google_takeout
-from src import music_pipeline
-from src import analysis_pipeline
-from src import analysis
+from src import analysis, analysis_pipeline, google_takeout, music_pipeline
 
 
-def print_analysis_test(music_dataframe, analysis_results):
-    """Print headline results to verify the analysis pipeline."""
+# ============================================================
+# Command-Line Report
+# ============================================================
+
+
+def print_analysis_summary(analysis_results: dict) -> None:
+    """Display the completed report for command-line users."""
 
     print("\n-------------------------------------------------------------")
-    print("Analysis Test Results")
+    print("Analysis Results")
     print("-------------------------------------------------------------")
 
     summary = analysis_results["summary"]
@@ -69,31 +71,8 @@ def print_analysis_test(music_dataframe, analysis_results):
     print("\n## Longest Session by Listening Time")
     print(analysis_results["longest_session"])
 
-    print("\n## Prepared DataFrame")
-    print(f"Rows: {len(music_dataframe)}")
-    print("Columns:")
-    print(music_dataframe.columns.tolist())
 
-    print("\nFirst 5 rows:")
-    print(
-        music_dataframe[
-            [
-                "title",
-                "watched_at",
-                "duration_seconds",
-                "adjusted_duration_seconds",
-                "session_id",
-                "week",
-            ]
-        ].head()
-    )
-
-    print("\n-------------------------------------------------------------")
-    print("Analysis test complete")
-    print("-------------------------------------------------------------")
-
-
-def main():
+def main() -> None:
     print("-------------------------------------------------------------")
     print("YouTube Music Analysis")
     print("-------------------------------------------------------------")
@@ -102,6 +81,8 @@ def main():
     # Project Paths
     # --------------------------------------------------------
 
+    # Resolve data paths from this file so the command can be launched
+    # from a different working directory without selecting another dataset.
     project_root = Path(__file__).resolve().parent.parent
 
     watch_path = (
@@ -140,27 +121,6 @@ def main():
         f"Cleaned watch history contains "
         f"{len(records_dataframe)} records"
     )
-
-    print("\n## Pre-pipeline DataFrame diagnostics")
-    print(f"Total cleaned records: {len(records_dataframe)}")
-    print(
-        f"Unique videos: "
-        f"{records_dataframe['video_ids'].nunique()}"
-    )
-
-    print("\nKnown repeat-listen test:")
-    print(
-        records_dataframe[
-            records_dataframe["title"].str.contains(
-                "Ai Đưa Em Về",
-                case=False,
-                na=False
-            )
-        ]["title"].value_counts()
-    )
-
-
-
 
     # --------------------------------------------------------
     # Music Classification Pipeline
@@ -210,13 +170,10 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Temporary Integration Test
+    # Analysis Summary
     # --------------------------------------------------------
 
-    print_analysis_test(
-        music_dataframe,
-        analysis_results
-    )
+    print_analysis_summary(analysis_results)
 
 
 if __name__ == "__main__":

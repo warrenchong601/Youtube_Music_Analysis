@@ -1,3 +1,7 @@
+// ============================================================
+// Chart Configuration
+// ============================================================
+
 let songTrendChart = null;
 
 const colours = {
@@ -37,6 +41,10 @@ Chart.defaults.plugins.tooltip.bodyColor = "#d7dbe4";
 Chart.defaults.plugins.tooltip.padding = 12;
 Chart.defaults.plugins.tooltip.cornerRadius = 10;
 
+
+// ============================================================
+// Formatting and Chart Scales
+// ============================================================
 
 function formatDateLabel(value) {
     const date = new Date(String(value).split("/")[0] + "T00:00:00");
@@ -95,6 +103,14 @@ function standardScales(xTitle, yTitle) {
         }
     };
 }
+function dateScales(xTitle, yTitle) {
+    const scales = standardScales(xTitle, yTitle);
+    scales.x.ticks.callback = function(value) {
+        return formatDateLabel(this.getLabelForValue(value));
+    };
+    return scales;
+}
+
 function horizontalBarScales(xTitle) {
     return {
         x: {
@@ -138,6 +154,34 @@ function horizontalBarScales(xTitle) {
 }
 
 
+// Measure rendered text rather than character counts because mixed scripts
+// and variable-width letters need different space in the song labels.
+function wrapSongLabel(context, label, width) {
+    const characters = Array.from(label);
+    const lines = [];
+    let line = "";
+    for (const character of characters) {
+        if (line && context.measureText(line + character).width > width) {
+            const breakAt = line.lastIndexOf(" ");
+            const wrapAtWord = breakAt > 0 && context.measureText(line.slice(0, breakAt)).width > width * 0.55;
+            lines.push((wrapAtWord ? line.slice(0, breakAt) : line).trim());
+            line = wrapAtWord ? line.slice(breakAt + 1) : "";
+            if (lines.length === 2) {
+                let lastLine = lines[1];
+                while (lastLine && context.measureText(lastLine + "…").width > width) {
+                    lastLine = Array.from(lastLine).slice(0, -1).join("");
+                }
+                lines[1] = lastLine + "…";
+                return lines;
+            }
+        }
+        line += character;
+    }
+    if (line.trim()) {
+        lines.push(line.trim());
+    }
+    return lines;
+}
 
 function topSongScales() {
     const scales = horizontalBarScales("Plays");
@@ -152,29 +196,11 @@ function topSongScales() {
             const width = Math.max(70, this.chart.width * 0.52 - 24);
             context.save();
             context.font = "13px Inter, system-ui, sans-serif";
-            const characters = Array.from(label);
-            const lines = [];
-            let line = "";
-            for (let index = 0; index < characters.length; index++) {
-                const character = characters[index];
-                if (line && context.measureText(line + character).width > width) {
-                    const breakAt = line.lastIndexOf(" ");
-                    const wrapAtWord = breakAt > 0 && context.measureText(line.slice(0, breakAt)).width > width * 0.55;
-                    lines.push((wrapAtWord ? line.slice(0, breakAt) : line).trim());
-                    line = wrapAtWord ? line.slice(breakAt + 1) : "";
-                    if (lines.length === 2) {
-                        let last = lines[1];
-                        while (last && context.measureText(last + "…").width > width) last = Array.from(last).slice(0, -1).join("");
-                        lines[1] = last + "…";
-                        context.restore();
-                        return lines;
-                    }
-                }
-                line += character;
+            try {
+                return wrapSongLabel(context, label, width);
+            } finally {
+                context.restore();
             }
-            if (line.trim()) lines.push(line.trim());
-            context.restore();
-            return lines;
         }
     };
     return scales;
@@ -187,34 +213,41 @@ function formatDuration(seconds) {
 function formatWeekRange(week) {
     return String(week).split("/").map(formatDateLabel).join(" – ");
 }
-const API_BASE = (location.pathname.startsWith("/dashboard") || location.port === "8000") ? location.origin : "http://127.0.0.1:8000";
+// ============================================================
+// API Requests
+// ============================================================
+
+const LOCAL_API_ORIGIN = "http://127.0.0.1:8000";
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const IMPORT_POLL_INTERVAL_MS = 1500;
+const WEEK_PAGE_SIZE = 12;
+const API_BASE = (location.pathname.startsWith("/dashboard") || location.port === "8000") ? location.origin : LOCAL_API_ORIGIN;
 const activeDataset = sessionStorage.getItem("musicDataset");
 async function fetchData(url) {
-    url = url.replace("http://127.0.0.1:8000", API_BASE);
+    url = API_BASE + url;
     const response = await fetch(url, {headers: activeDataset ? {"X-Dataset-Token": activeDataset} : {}});
     if (!response.ok) throw new Error("Request failed: " + response.status);
-    return response;
+    return response.json();
 }
+// ============================================================
+// Dashboard Data and Charts
+// ============================================================
+
 async function loadListeningTime() {
-    const response = await fetchData("http://127.0.0.1:8000/api/listening-time");
-    const data = await response.json();
+    const data = await fetchData("/api/listening-time");
     document.getElementById("listening_time").textContent = formatDuration(data.total_seconds);
     document.getElementById("listening_time").title = data.formatted_time;
 }
 async function loadSessions() {
-    const response = await fetchData("http://127.0.0.1:8000/api/sessions");
-    const data = await response.json();
+    const data = await fetchData("/api/sessions");
     document.getElementById("total_sessions").textContent = data.total_sessions.toLocaleString();
 }
 
 async function loadSummary() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/summary"
+    const data = await fetchData(
+        "/api/summary"
     );
 
-    const data = await response.json();
-
-    console.log(data);
 
     document.getElementById("music_plays").textContent =
         data.music_plays;
@@ -228,18 +261,13 @@ async function loadSummary() {
 
 
 async function loadTopSongs() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/top-songs"
+    const data = await fetchData(
+        "/api/top-songs"
     );
 
-    const data = await response.json();
-
-    const title = data.map(item => item.title);
+    const songTitles = data.map(item => item.title);
     const plays = data.map(item => item.plays);
 
-    console.log("Testing loadTopSongs()");
-    console.log(title);
-    console.log(plays);
 
     new Chart(
         document.getElementById("top_songs"),
@@ -247,7 +275,7 @@ async function loadTopSongs() {
             type: "bar",
 
             data: {
-                labels: title,
+                labels: songTitles,
                 datasets: [
                     {
                         label: "Times listened",
@@ -273,13 +301,11 @@ async function loadTopSongs() {
     );
 }
 async function loadTopChannels() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/top-channels"
+    const data = await fetchData(
+        "/api/top-channels"
     );
 
-    const data = await response.json();
-
-    const titles = data.map(item => item.channel);
+    const channelNames = data.map(item => item.channel);
     const plays = data.map(item => item.plays);
 
     new Chart(
@@ -288,7 +314,7 @@ async function loadTopChannels() {
             type: "bar",
 
             data: {
-                labels: titles,
+                labels: channelNames,
                 datasets: [
                     {
                         label: "Plays",
@@ -315,19 +341,17 @@ async function loadTopChannels() {
 }
 
 async function loadSessionHighlights() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/session-highlights"
+    const data = await fetchData(
+        "/api/session-highlights"
     );
-
-    const data = await response.json();
 
     for (const key of ["largest_session", "longest_session"]) {
         const session = data[key];
         const favourites = Object.entries(session?.top_songs ?? {});
-        const max = Math.max(0, ...favourites.map(([, plays]) => plays));
-        const leaders = favourites.filter(([, plays]) => plays === max).map(([title]) => title);
-        document.getElementById(key + "_favourite").textContent = max > 1
-            ? "On repeat: " + leaders.join(" / ") + " · " + max + " plays each" : "A session of variety — no song played twice.";
+        const mostPlays = Math.max(0, ...favourites.map(([, plays]) => plays));
+        const leaders = favourites.filter(([, plays]) => plays === mostPlays).map(([title]) => title);
+        document.getElementById(key + "_favourite").textContent = mostPlays > 1
+            ? "On repeat: " + leaders.join(" / ") + " · " + mostPlays + " plays each" : "A session of variety — no song played twice.";
     }
     if (!data.largest_session || !data.longest_session) {
         for (const key of ["largest_session", "longest_session"]) {
@@ -361,11 +385,9 @@ async function loadSessionHighlights() {
 }
 
 async function loadListeningByDate() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/listening-by-date"
+    const data = await fetchData(
+        "/api/listening-by-date"
     );
-
-    const data = await response.json();
 
     const dates = data.map(item => item.date);
     const plays = data.map(item => item.plays);
@@ -393,23 +415,7 @@ async function loadListeningByDate() {
             },
 
             options: {
-                scales: {
-                    ...standardScales("Date", "Plays"),
-
-                    x: {
-                        ...standardScales("Date", "Plays").x,
-
-                        ticks: {
-                            ...standardScales("Date", "Plays").x.ticks,
-
-                            callback: function(value) {
-                                return formatDateLabel(
-                                    this.getLabelForValue(value)
-                                );
-                            }
-                        }
-                    }
-                },
+                scales: dateScales("Date", "Plays"),
 
                 plugins: {
                     legend: {
@@ -427,11 +433,9 @@ async function loadListeningByDate() {
     );
 }
 async function loadListeningByHour() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/listening-by-hour"
+    const data = await fetchData(
+        "/api/listening-by-hour"
     );
-
-    const data = await response.json();
 
     const hours = Array.from({length: 24}, (_, hour) => String(hour).padStart(2, "0") + ":00");
     const plays = hours.map((_, hour) => data.find(item => item.hour === hour)?.plays ?? 0);
@@ -470,11 +474,9 @@ async function loadListeningByHour() {
     );
 }
 async function loadListeningByWeekday() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/listening-by-weekday"
+    const data = await fetchData(
+        "/api/listening-by-weekday"
     );
-
-    const data = await response.json();
 
     const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const plays = weekdays.map(day => data.find(item => item.weekday === day)?.plays ?? 0);
@@ -515,10 +517,40 @@ async function loadListeningByWeekday() {
         }
     );
 }
+function renderWeeklyWinners(visible, leaders) {
+    const body = document.getElementById("weekly_winners");
+    body.replaceChildren();
+    visible.forEach((item, index) => {
+        const row = document.createElement("tr");
+        [formatWeekRange(item.week), leaders[index].title, leaders[index].plays].forEach((value, column) => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            if (column === 1 && leaders[index].titles.length > 1) {
+                cell.replaceChildren();
+                const details = document.createElement("details");
+                const summary = document.createElement("summary");
+                const others = leaders[index].titles.length - 1;
+                summary.textContent = leaders[index].title + " + " + others + (others === 1 ? " joint winner" : " joint winners");
+                details.appendChild(summary);
+                const list = document.createElement("ul");
+                leaders[index].titles.forEach(title => {
+                    const entry = document.createElement("li");
+                    entry.textContent = title;
+                    list.appendChild(entry);
+                });
+                details.appendChild(list);
+                cell.appendChild(details);
+            }
+            row.appendChild(cell);
+        });
+        body.appendChild(row);
+    });
+}
+
 async function loadListeningByWeek() {
-    const response = await fetchData("http://127.0.0.1:8000/api/listening-by-week?limit=10000");
-    const data = (await response.json()).sort((a, b) => a.week.localeCompare(b.week));
-    const pageSize = 12;
+    const data = (await fetchData("/api/listening-by-week?limit=10000"))
+        .sort((first, second) => first.week.localeCompare(second.week));
+    const pageSize = WEEK_PAGE_SIZE;
     let start = Math.max(0, data.length - pageSize);
     let chart;
     function render() {
@@ -532,33 +564,7 @@ async function loadListeningByWeek() {
             ? formatDateLabel(visible[0].week) + " – " + formatDateLabel(visible.at(-1).week.split("/").at(-1)) : "No weekly history";
         document.getElementById("weeks_previous").disabled = start === 0;
         document.getElementById("weeks_next").disabled = start + pageSize >= data.length;
-        const body = document.getElementById("weekly_winners");
-        body.replaceChildren();
-        visible.forEach((item, index) => {
-            const row = document.createElement("tr");
-            [formatWeekRange(item.week), leaders[index].title, leaders[index].plays].forEach((value, column) => {
-                const cell = document.createElement("td");
-                cell.textContent = value;
-                if (column === 1 && leaders[index].titles.length > 1) {
-                    cell.replaceChildren();
-                    const details = document.createElement("details");
-                    const summary = document.createElement("summary");
-                    const others = leaders[index].titles.length - 1;
-                    summary.textContent = leaders[index].title + " + " + others + (others === 1 ? " joint winner" : " joint winners");
-                    details.appendChild(summary);
-                    const list = document.createElement("ul");
-                    leaders[index].titles.forEach(title => {
-                        const entry = document.createElement("li");
-                        entry.textContent = title;
-                        list.appendChild(entry);
-                    });
-                    details.appendChild(list);
-                    cell.appendChild(details);
-                }
-                row.appendChild(cell);
-            });
-            body.appendChild(row);
-        });
+        renderWeeklyWinners(visible, leaders);
         document.getElementById("weekly_songs_chart").parentElement.style.minWidth = Math.max(320, visible.length * 76 + 65) + "px";
         if (chart) chart.destroy();
         chart = new Chart(document.getElementById("weekly_songs_chart"), {
@@ -581,11 +587,9 @@ async function loadListeningByWeek() {
 }
 
 async function loadSongConcentration() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/song-concentration"
+    const data = await fetchData(
+        "/api/song-concentration"
     );
-
-    const data = await response.json();
 
     const topN = data.map(item => "Top " + item.top_n);
     const percentages = data.map(item => item.percentage);
@@ -631,11 +635,9 @@ async function loadSongConcentration() {
     );
 }
 async function loadLoyalty() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/loyalty"
+    const data = await fetchData(
+        "/api/loyalty"
     );
-
-    const data = await response.json();
 
     document.getElementById("repeat_percentage").textContent =
         data.repeat_play_percentage.toFixed(1) + "%";
@@ -650,18 +652,13 @@ async function loadLoyalty() {
         data.repeat_plays;
 }
 async function loadPersistentSongs() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/persistent-songs"
+    const data = await fetchData(
+        "/api/persistent-songs"
     );
 
-    const data = await response.json();
-
-    const title = data.map(item => item.title);
+    const songTitles = data.map(item => item.title);
     const weeks = data.map(item => item.weeks);
 
-    console.log("Testing loadPersistentSongs()");
-    console.log(title);
-    console.log(weeks);
 
     new Chart(
         document.getElementById("persistent_songs_chart"),
@@ -669,7 +666,7 @@ async function loadPersistentSongs() {
             type: "bar",
 
             data: {
-                labels: title,
+                labels: songTitles,
                 datasets: [
                     {
                         label: "Weeks listened",
@@ -695,59 +692,8 @@ async function loadPersistentSongs() {
         }
     );
 }
-async function loadSongRankings() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/song-rankings-by-week"
-    );
-
-    const data = await response.json();
-
-    const weeks = [...new Set(data.map(item => item.week))].sort();
-    if (weeks.length) {
-        const first = new Date(weeks[0].split("/")[0] + "T00:00:00Z");
-        const last = new Date(weeks.at(-1).split("/")[0] + "T00:00:00Z");
-        weeks.length = 0;
-        for (let date = first; date <= last; date.setUTCDate(date.getUTCDate() + 7)) {
-            const end = new Date(date);
-            end.setUTCDate(end.getUTCDate() + 6);
-            weeks.push(date.toISOString().slice(0, 10) + "/" + end.toISOString().slice(0, 10));
-        }
-    }
-
-    const songs = [
-        ...new Set(
-            data.map(item => item.title)
-        )
-    ];
-
-    const datasets = songs.map((song, index) => {
-        const rankings = weeks.map(week => {
-            const result = data.find(
-                item =>
-                    item.week === week
-                    && item.title === song
-            );
-
-            return result ? result.rank : null;
-        });
-
-        return {
-            label: song,
-            data: rankings,
-            spanGaps: false,
-            hidden: false,
-            borderColor:
-                chartColours[index % chartColours.length],
-            backgroundColor:
-                chartColours[index % chartColours.length],
-            borderWidth: 2,
-            pointRadius: 2.5,
-            pointHoverRadius: 6,
-            tension: 0
-        };
-    });
-
-    const rankingChart = new Chart(
+function createSongRankingsChart(weeks, datasets) {
+    return new Chart(
         document.getElementById("song_rankings_chart"),
         {
             type: "line",
@@ -863,6 +809,63 @@ async function loadSongRankings() {
             }
         }
     );
+}
+
+async function loadSongRankings() {
+    const data = await fetchData(
+        "/api/song-rankings-by-week"
+    );
+
+    // Include missing calendar weeks so the chart shows gaps instead of
+    // connecting observations that were separated by weeks with no plays.
+    const weeks = [...new Set(data.map(item => item.week))].sort();
+    if (weeks.length) {
+        const first = new Date(weeks[0].split("/")[0] + "T00:00:00Z");
+        const last = new Date(weeks.at(-1).split("/")[0] + "T00:00:00Z");
+        weeks.length = 0;
+        for (let date = first; date <= last; date.setUTCDate(date.getUTCDate() + 7)) {
+            const end = new Date(date);
+            end.setUTCDate(end.getUTCDate() + 6);
+            weeks.push(date.toISOString().slice(0, 10) + "/" + end.toISOString().slice(0, 10));
+        }
+    }
+
+    const songs = [
+        ...new Set(
+            data.map(item => item.title)
+        )
+    ];
+
+    const datasets = songs.map((song, index) => {
+        const rankings = weeks.map(week => {
+            const result = data.find(
+                item =>
+                    item.week === week
+                    && item.title === song
+            );
+
+            // An absent rank is a gap, not zero: rank 1 is already the best
+            // possible position, so zero would imply a misleading result.
+            return result ? result.rank : null;
+        });
+
+        return {
+            label: song,
+            data: rankings,
+            spanGaps: false,
+            hidden: false,
+            borderColor:
+                chartColours[index % chartColours.length],
+            backgroundColor:
+                chartColours[index % chartColours.length],
+            borderWidth: 2,
+            pointRadius: 2.5,
+            pointHoverRadius: 6,
+            tension: 0
+        };
+    });
+
+    const rankingChart = createSongRankingsChart(weeks, datasets);
     const selector = document.getElementById("ranking_selector");
     songs.forEach((song, index) => {
         const option = document.createElement("option");
@@ -883,11 +886,9 @@ async function loadSongRankings() {
 }
 
 async function loadSongSelector() {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/top-songs"
+    const data = await fetchData(
+        "/api/top-songs"
     );
-
-    const data = await response.json();
 
     const selector =
         document.getElementById("song_selector");
@@ -916,12 +917,10 @@ async function loadSongSelector() {
     }
 }
 async function loadSongTrend(title) {
-    const response = await fetchData(
-        "http://127.0.0.1:8000/api/song-trend?title="
+    const data = await fetchData(
+        "/api/song-trend?title="
         + encodeURIComponent(title)
     );
-
-    const data = await response.json();
 
     const weeks =
         data.trend_data.map(item => item.week);
@@ -958,26 +957,7 @@ async function loadSongTrend(title) {
             },
 
             options: {
-                scales: {
-                    ...standardScales("Week", "Plays"),
-
-                    x: {
-                        ...standardScales("Week", "Plays").x,
-
-                        ticks: {
-                            ...standardScales(
-                                "Week",
-                                "Plays"
-                            ).x.ticks,
-
-                            callback: function(value) {
-                                return formatDateLabel(
-                                    this.getLabelForValue(value)
-                                );
-                            }
-                        }
-                    }
-                },
+                scales: dateScales("Week", "Plays"),
 
                 plugins: {
                     legend: {
@@ -996,9 +976,15 @@ async function loadSongTrend(title) {
 }
 
 
+// ============================================================
+// Dashboard Initialisation
+// ============================================================
+
 const loaders = [loadSummary, loadListeningTime, loadSessions, loadTopSongs, loadTopChannels,
     loadListeningByDate, loadListeningByHour, loadListeningByWeekday, loadListeningByWeek,
     loadSessionHighlights, loadSongConcentration, loadLoyalty, loadPersistentSongs, loadSongRankings, loadSongSelector];
+// Independent panels can still render when one endpoint fails; collect
+// failures afterwards so partial data is accompanied by a visible warning.
 Promise.allSettled(loaders.map(load => load())).then(results => {
     const failed = results.filter(result => result.status === "rejected");
     if (failed.length) {
@@ -1009,6 +995,10 @@ Promise.allSettled(loaders.map(load => load())).then(results => {
     }
 });
 
+
+// ============================================================
+// History Imports
+// ============================================================
 
 // Reload on dataset changes so in-flight requests cannot mix reports.
 document.getElementById("export_timezone").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -1029,6 +1019,8 @@ async function importRequest(path, options = {}) {
     return body;
 }
 
+// Poll the job token rather than the active report token, since the
+// previous report remains selected until the new import completes.
 async function monitorImport(token) {
     importButton.disabled = true;
     deleteButton.disabled = true;
@@ -1048,7 +1040,7 @@ async function monitorImport(token) {
                 location.reload();
                 return;
             }
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, IMPORT_POLL_INTERVAL_MS));
         }
     } catch (error) {
         importStatus.textContent = error.message + " Refresh to reconnect, or try another import.";
@@ -1062,7 +1054,7 @@ document.getElementById("import_form").addEventListener("submit", async event =>
     event.preventDefault();
     const file = document.getElementById("history_file").files[0];
     if (!file) return;
-    if (file.size > 25 * 1024 * 1024) {
+    if (file.size > MAX_UPLOAD_BYTES) {
         importStatus.textContent = "Choose a history file smaller than 25 MB.";
         return;
     }
