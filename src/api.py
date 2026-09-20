@@ -5,8 +5,16 @@ import pandas as pd
 
 from src import analysis_pipeline
 from src import analysis
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -163,10 +171,10 @@ def get_listening_by_week(limit: int = 5):
                 "title": title,
                 "plays": int(plays)
             })
-        weekly_data.append([{
+        weekly_data.append({
             "week": str(week),
             "songs": songs
-        }])
+        })
 
     return weekly_data
 
@@ -266,4 +274,25 @@ def get_song_trend(title: str):
         "title": title,
         "trend_data": trend_data
     }
+
+@app.get("/api/song-rankings-by-week")
+def get_song_rankings_by_week(limit: int = 5):
+    music_dataframe = load_music_data()
+
+    rankings = analysis.get_song_rankings_by_week(
+        music_dataframe,
+        limit
+    )
+
+    ranking_data = []
+
+    for _, row in rankings.iterrows():
+        ranking_data.append({
+            "week": str(row["week"]),
+            "title": row["title"],
+            "plays": int(row["plays"]),
+            "rank": int(row["rank"])
+        })
+
+    return ranking_data
 

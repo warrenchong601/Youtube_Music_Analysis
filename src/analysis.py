@@ -340,3 +340,33 @@ def get_song_week_persistence(music_dataframe, limit=10):
     )
 
     return weeks_per_song
+
+def get_song_rankings_by_week(music_dataframe, limit=5):
+    dataframe = music_dataframe.copy()
+
+    dataframe["week"] = (
+        dataframe["watched_at"]
+        .dt.to_period("W")
+    )
+
+    weekly_song_counts = (
+        dataframe
+        .groupby(["week", "title"])
+        .size()
+        .rename("plays")
+        .reset_index()
+    )
+
+    weekly_song_counts["rank"] = (
+        weekly_song_counts
+        .groupby("week")["plays"]
+        .rank(method="min", ascending=False)
+    )
+
+    top_rankings = weekly_song_counts[
+        weekly_song_counts["rank"] <= limit
+    ].copy()
+
+    top_rankings["rank"] = top_rankings["rank"].astype(int)
+
+    return top_rankings
