@@ -45,6 +45,7 @@ def create_music_dataframe(records_dataframe, classified_candidates):
         validate="many_to_one",
     )
 
+    music_dataframe["channel"] = music_dataframe["channel"].fillna(music_dataframe["channel_name"])
     return (
         music_dataframe.drop(columns=[
             "video_title", "video_ID", "channel_name", "description", "action"

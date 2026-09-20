@@ -1,71 +1,42 @@
-
+"""Classify each distinct video once, then restore every listening event."""
+import re
 from src import classifier, music_export, youtube_api
 
-# ============================================================
-# Music Classification Pipeline
-# ============================================================
-
-# Classify music from cleaned watch history and export the final dataset.
-def run_music_pipeline(records_dataframe, output_path):
-
-    # Retrieve YouTube metadata and select Category 10 music candidates.
+def run_music_pipeline(records_dataframe, output_path, progress=print):
+    unique = records_dataframe.drop_duplicates("video_ids").reset_index(drop=True)
     music_candidates = []
-    for batch in youtube_api.create_video_batches(records_dataframe):
+    batches = youtube_api.create_video_batches(unique)
+    for index, batch in enumerate(batches, 1):
+        progress(f"Fetching video metadata: batch {index}/{len(batches)}")
         metadata = youtube_api.fetch_video_metadata(batch)
         music_candidates.extend(classifier.extract_music_candidates(metadata))
-
-    print(f"Category 10 candidates: {len(music_candidates)}")
-    print(
-        f"Unique Category 10 videos: "
-        f"{len({candidate['video_ID'] for candidate in music_candidates})}"
-    )
-
-    # Remove Shorts that may be classified as music due to their backing audio.
-    non_short_candidates = classifier.remove_shorts_video_candidates(music_candidates, youtube_api.is_short)
-
-    print(f"Non-short candidates: {len(non_short_candidates)}")
-    print(
-        f"Unique non-short videos: "
-        f"{len({candidate['video_ID'] for candidate in non_short_candidates})}"
-    )
-
-    # Retrieve channel metadata once per unique candidate channel.
-    channel_ids = {candidate["channel_id"] for candidate in non_short_candidates}
+    source_shorts = set(records_dataframe.loc[
+        records_dataframe["video_url"].str.contains(r"/shorts/", na=False), "video_ids"])
+    accepted, excluded = [], []
+    for index, candidate in enumerate(music_candidates, 1):
+        progress(f"Checking video format: {index}/{len(music_candidates)}")
+        labelled = re.search(r"#shorts?\b", candidate["video_title"], re.IGNORECASE)
+        duration = re.fullmatch(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", candidate["video_duration"])
+        seconds = sum(int(value or 0) * multiplier for value, multiplier in zip(duration.groups(), (3600, 60, 1))) if duration else None
+        if labelled or candidate["video_ID"] in source_shorts:
+            status = True
+        elif seconds is not None and seconds > 180:
+            # Shorts are at most three minutes. Shorter duration alone proves nothing.
+            status = False
+        else:
+            status = youtube_api.is_short(candidate["video_ID"])
+        candidate["short_status"] = "short" if status is True else "not_short" if status is False else "unknown"
+        if status is False:
+            accepted.append(candidate)
+        else:
+            excluded.append({**candidate, "classification": "excluded_short" if status is True else "review",
+                             "classification_reason": "short_format" if status is True else "short_check_inconclusive",
+                             "classification_evidence": candidate["short_status"]})
     music_channel_ids = set()
-
-    for batch in youtube_api.create_channel_batches(channel_ids):
-        metadata = youtube_api.fetch_channel_metadata(batch)
-        music_channel_ids.update(classifier.extract_music_channel_ids(metadata))
-
-    print(f"Unique candidate channels: {len(channel_ids)}")
-
-    # Combine channel, title and description evidence into a final decision
-    classified_candidates = classifier.classify_candidates(
-        non_short_candidates,
-        music_channel_ids
-    )
-
-    print(f"Music channels identified: {len(music_channel_ids)}")
-
-    # Rejoin accepted music videos with the original watch events and export.
-    music_dataframe = music_export.export_music_history(
-        records_dataframe,
-        classified_candidates,
-        output_path
-    )
-
-    from collections import Counter
-
-    classification_counts = Counter(
-        candidate["classification"]
-        for candidate in classified_candidates
-    )
-
-    print(f"Final music watch events: {len(music_dataframe)}")
-    print(f"Final unique music videos: {music_dataframe['video_ids'].nunique()}")
-
-    print("Classification counts:")
-    print(classification_counts)
-
-    # Return all decisions too, so review/non_music records remain inspectable.
-    return music_dataframe, classified_candidates
+    for batch in youtube_api.create_channel_batches({c["channel_id"] for c in accepted}):
+        progress("Checking music channels")
+        music_channel_ids.update(classifier.extract_music_channel_ids(youtube_api.fetch_channel_metadata(batch)))
+    classified = classifier.classify_candidates(accepted, music_channel_ids)
+    progress("Building listening report")
+    dataframe = music_export.export_music_history(records_dataframe, classified, output_path)
+    return dataframe, classified + excluded

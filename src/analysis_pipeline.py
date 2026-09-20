@@ -5,15 +5,19 @@ from src import analysis
 # Analysis Pipeline
 # ============================================================
 
-def prepare_analysis_dataframe(music_dataframe):
+def prepare_analysis_dataframe(music_dataframe, use_personal_overrides=True):
     """Add derived fields required by the analysis functions."""
+
+    music_dataframe = music_dataframe.copy()
+    if music_dataframe["watched_at"].dt.tz is not None:
+        music_dataframe["watched_at"] = music_dataframe["watched_at"].dt.tz_convert("UTC").dt.tz_localize(None)
 
     music_dataframe = analysis.add_duration_seconds(
         music_dataframe
     )
 
     music_dataframe = analysis.add_adjusted_duration(
-        music_dataframe
+        music_dataframe, use_personal_overrides=use_personal_overrides
     )
 
     music_dataframe = analysis.add_session_ids(

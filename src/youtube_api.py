@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_KEY = os.getenv("YOUTUBE_API_KEY")
-if not API_KEY:
-    raise ValueError("YOUTUBE_API_KEY was not found in the environment.")
+
 
 YOUTUBE_VIDEOS_ENDPOINT = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_CHANNELS_ENDPOINT = "https://www.googleapis.com/youtube/v3/channels"
@@ -50,7 +49,10 @@ def create_video_request(video_ids):
 def fetch_video_metadata(video_id):
     request_params = create_video_request(video_id)
 
-    response = requests.get(url=YOUTUBE_VIDEOS_ENDPOINT, params=request_params)
+    if not API_KEY:
+        raise ValueError("Set YOUTUBE_API_KEY on the server before importing history.")
+
+    response = requests.get(timeout=20, url=YOUTUBE_VIDEOS_ENDPOINT, params=request_params)
     response.raise_for_status()
 
     return response.json()
@@ -88,7 +90,10 @@ def create_channel_request(channel_id):
 def fetch_channel_metadata(channel_id):
     request_params = create_channel_request(channel_id)
 
-    response = requests.get(url=YOUTUBE_CHANNELS_ENDPOINT, params=request_params)
+    if not API_KEY:
+        raise ValueError("Set YOUTUBE_API_KEY on the server before importing history.")
+
+    response = requests.get(timeout=20, url=YOUTUBE_CHANNELS_ENDPOINT, params=request_params)
 
     response.raise_for_status()
 
@@ -99,7 +104,8 @@ def fetch_channel_metadata(channel_id):
 # ============================================================
 
 # The YouTube Data API does not directly identify whether a video is a Short.
-# Requesting its /shorts/ URL and checking the resulting URL provides a way to distinguish Shorts from normal videos.
+# Redirects provide a heuristic only. None means the check was inconclusive.
+# Retry consent/unexpected responses with the default HTTP client user agent.
 def is_short(video_id, max_attempts=2):
     video_url = f"https://www.youtube.com/shorts/{video_id}"
 
@@ -115,11 +121,20 @@ def is_short(video_id, max_attempts=2):
         try:
             response = requests.get(
                 video_url,
-                headers=headers,
+                headers=headers if attempt == 0 else {},
                 timeout=10
             )
 
-            return "/shorts/" in response.url
+            from urllib.parse import urlparse, parse_qs
+            response.raise_for_status()
+            final = urlparse(response.url)
+            if final.hostname not in {"www.youtube.com", "youtube.com", "m.youtube.com"}:
+                continue
+            if final.path.rstrip("/") == f"/shorts/{video_id}":
+                return True
+            if final.path == "/watch" and parse_qs(final.query).get("v") == [video_id]:
+                return False
+            continue
 
         except requests.RequestException as error:
             print(
@@ -127,7 +142,7 @@ def is_short(video_id, max_attempts=2):
                 f"(attempt {attempt + 1}/{max_attempts}): {error}"
             )
 
-    return False
+    return None
 
 ##Filler is_short function to bypass making lots of indivudal calls to Youtube's API slowing down the function
 def fake_is_short(video_id):

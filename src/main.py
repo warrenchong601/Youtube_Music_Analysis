@@ -102,7 +102,7 @@ def main():
     # Project Paths
     # --------------------------------------------------------
 
-    project_root = Path.cwd().parent
+    project_root = Path(__file__).resolve().parent.parent
 
     watch_path = (
         project_root

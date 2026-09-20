@@ -1,12 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Header, HTTPException
+from src.imports import router as imports_router, dataset_path
 
 from pathlib import Path
 import pandas as pd
 
 from src import analysis_pipeline
 from src import analysis
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.include_router(imports_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -23,23 +33,23 @@ def root():
         "message": "YouTube Music Analysis API"
     }
 
-def load_music_data():
-    music_dataframe = pd.read_csv(MUSIC_HISTORY_PATH, parse_dates=["watched_at"])
+def load_music_data(x_dataset_token: str | None = Header(default=None)):
+    music_dataframe = pd.read_csv(dataset_path(x_dataset_token) if x_dataset_token else MUSIC_HISTORY_PATH, parse_dates=["watched_at"])
 
-    music_dataframe = (analysis_pipeline.prepare_analysis_dataframe(music_dataframe))
+    music_dataframe["watched_at"] = pd.to_datetime(music_dataframe["watched_at"], utc=bool(x_dataset_token))
+
+    music_dataframe = (analysis_pipeline.prepare_analysis_dataframe(music_dataframe, use_personal_overrides=not x_dataset_token))
 
     return music_dataframe
 
 @app.get("/api/summary")
-def get_summary():
-    music_dataframe = load_music_data()
+def get_summary(music_dataframe=Depends(load_music_data)):
     analysis_results = (analysis_pipeline.run_music_analysis(music_dataframe))
 
     return analysis_results["summary"]
 
 @app.get("/api/listening-time")
-def get_listening_time():
-    music_dataframe = load_music_data()
+def get_listening_time(music_dataframe=Depends(load_music_data)):
 
     total_seconds = analysis.get_total_listening_seconds(music_dataframe)
 
@@ -49,8 +59,7 @@ def get_listening_time():
     }
 
 @app.get("/api/top-songs")
-def get_top_songs(limit: int = 10):
-    music_dataframe = load_music_data()
+def get_top_songs(limit: int = 10, music_dataframe=Depends(load_music_data)):
 
     top_songs = analysis.get_top_songs(music_dataframe, limit)
 
@@ -65,8 +74,7 @@ def get_top_songs(limit: int = 10):
     return songs
 
 @app.get("/api/song-concentration")
-def get_song_concentration():
-    music_dataframe = load_music_data()
+def get_song_concentration(music_dataframe=Depends(load_music_data)):
 
     concentration = analysis.get_top_song_concentration(
         music_dataframe
@@ -84,8 +92,7 @@ def get_song_concentration():
     return concentration_data
 
 @app.get("/api/top-channels")
-def get_top_channels():
-    music_dataframe = load_music_data()
+def get_top_channels(music_dataframe=Depends(load_music_data)):
 
     top_channels = analysis.get_top_channels(music_dataframe)
 
@@ -100,8 +107,7 @@ def get_top_channels():
     return channels
 
 @app.get("/api/listening-by-hour")
-def get_listening_by_hour():
-    music_dataframe = load_music_data()
+def get_listening_by_hour(music_dataframe=Depends(load_music_data)):
 
     hourly_counts = analysis.get_listens_by_hour(music_dataframe)
 
@@ -116,8 +122,7 @@ def get_listening_by_hour():
     return hourly_data
 
 @app.get("/api/listening-by-weekday")
-def get_listening_by_weekday():
-    music_dataframe = load_music_data()
+def get_listening_by_weekday(music_dataframe=Depends(load_music_data)):
 
     weekday_counts = analysis.get_listens_by_weekday(music_dataframe)
 
@@ -131,8 +136,7 @@ def get_listening_by_weekday():
     return weekday_data
 
 @app.get("/api/listening-by-date")
-def get_listening_by_date():
-    music_dataframe = load_music_data()
+def get_listening_by_date(music_dataframe=Depends(load_music_data)):
 
     date_counts = analysis.get_listens_by_date(music_dataframe)
 
@@ -146,8 +150,9 @@ def get_listening_by_date():
     return date_data
 
 @app.get("/api/listening-by-week")
-def get_listening_by_week(limit: int = 5):
-    music_dataframe = load_music_data()
+def get_listening_by_week(limit: int = 5, music_dataframe=Depends(load_music_data)):
+    if music_dataframe.empty:
+        return []
 
     weekly_songs = analysis.get_top_songs_by_week(music_dataframe, limit)
 
@@ -163,16 +168,15 @@ def get_listening_by_week(limit: int = 5):
                 "title": title,
                 "plays": int(plays)
             })
-        weekly_data.append([{
+        weekly_data.append({
             "week": str(week),
             "songs": songs
-        }])
+        })
 
     return weekly_data
 
 @app.get("/api/sessions")
-def get_sessions():
-    music_dataframe = load_music_data()
+def get_sessions(music_dataframe=Depends(load_music_data)):
 
     session_summary = analysis.get_session_summary(music_dataframe)
 
@@ -186,6 +190,8 @@ def get_sessions():
     }
 
 def serialize_session(session):
+    if session is None:
+        return None
     return {
         "session_id": int(session["session_id"]),
         "date": session["date"].isoformat(),
@@ -203,8 +209,7 @@ def serialize_session(session):
     }
 
 @app.get("/api/session-highlights")
-def get_session_highlights():
-    music_dataframe = load_music_data()
+def get_session_highlights(music_dataframe=Depends(load_music_data)):
 
     largest_session = analysis.get_largest_session(music_dataframe)
 
@@ -216,8 +221,7 @@ def get_session_highlights():
     }
 
 @app.get("/api/loyalty")
-def get_loyalty():
-    music_dataframe = load_music_data()
+def get_loyalty(music_dataframe=Depends(load_music_data)):
 
     loyalty = analysis.get_song_loyalty_summary(music_dataframe)
 
@@ -233,8 +237,7 @@ def get_loyalty():
     }
 
 @app.get("/api/persistent-songs")
-def get_persistent_songs(limit: int = 10):
-    music_dataframe = load_music_data()
+def get_persistent_songs(limit: int = 10, music_dataframe=Depends(load_music_data)):
 
     persistent_songs = analysis.get_song_week_persistence(music_dataframe, limit)
 
@@ -249,8 +252,7 @@ def get_persistent_songs(limit: int = 10):
     return songs
 
 @app.get("/api/song-trend")
-def get_song_trend(title: str):
-    music_dataframe = load_music_data()
+def get_song_trend(title: str, music_dataframe=Depends(load_music_data)):
 
     song_trend = analysis.get_song_weekly_trend(music_dataframe, title)
 
@@ -267,3 +269,28 @@ def get_song_trend(title: str):
         "trend_data": trend_data
     }
 
+@app.get("/api/song-rankings-by-week")
+def get_song_rankings_by_week(limit: int = 5, music_dataframe=Depends(load_music_data)):
+
+    rankings = analysis.get_song_rankings_by_week(
+        music_dataframe,
+        limit
+    )
+
+    ranking_data = []
+
+    for _, row in rankings.iterrows():
+        ranking_data.append({
+            "week": str(row["week"]),
+            "title": row["title"],
+            "plays": int(row["plays"]),
+            "rank": int(row["rank"])
+        })
+
+    return ranking_data
+
+
+
+# Serve the dashboard from the same origin as the API.
+from fastapi.staticfiles import StaticFiles
+app.mount("/dashboard", StaticFiles(directory=PROJECT_ROOT / "frontend", html=True), name="dashboard")

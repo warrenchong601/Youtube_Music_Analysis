@@ -16,3 +16,5 @@ data/raw/
 
 #Youtube API Key
 .env
+# Private imported listening histories
+data/imports/
